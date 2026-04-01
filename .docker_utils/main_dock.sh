@@ -8,6 +8,7 @@ FORZETH_DIR=/home/race_crew/ros2/race_stack
 docker run --tty \
     --interactive \
     --network=host \
+    --ipc=host \
     --env DISPLAY=$DISPLAY \
     --env USER=$USER \
     --env XAUTHORITY=/home/$USER/.Xauthority \
