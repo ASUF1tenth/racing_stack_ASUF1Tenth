@@ -12,6 +12,9 @@ docker run --tty \
     --env DISPLAY=$DISPLAY \
     --env USER=$USER \
     --env XAUTHORITY=/home/$USER/.Xauthority \
+    --env ROS_DOMAIN_ID=6 \
+    --env RMW_IMPLEMENTATION=rmw_zenoh_cpp \
+    --env ROS_LOCALHOST_ONLY=0 \
     --volume $XAUTH_LOC:/home/$USER/.Xauthority \
     --volume /dev:/dev \
     --volume /tmp/.X11-unix:/tmp/.X11-unix \

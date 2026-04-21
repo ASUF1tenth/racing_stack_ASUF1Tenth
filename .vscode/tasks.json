@@ -7,7 +7,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "source /opt/ros/humble/setup.bash && ros2 run rmw_zenoh_cpp rmw_zenohd"
+                "[ -f /.dockerenv ] && sh /home/race_crew/ws/src/race_stack/stack_master/scripts/run_zenoh.sh || true"
             ],
             "isBackground": true,
             "presentation": {
