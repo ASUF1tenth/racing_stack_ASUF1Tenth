@@ -1,9 +1,9 @@
 {
     "name": "ForzaETH Race Stack Humble",
     "dockerComposeFile": "../docker-compose.yaml",
-    "service": "sim_x_arm",
+    "service": "x86",
     "runServices": [
-        "sim_arm"
+        "x86"
     ],
     "initializeCommand": "/bin/bash -c 'source ${localWorkspaceFolder}/.devcontainer/xauth_setup.sh'",
     "workspaceFolder": "/home/${localEnv:USER}/ws/src/race_stack/",

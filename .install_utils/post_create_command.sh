@@ -2,6 +2,7 @@
 
 # Setup permissions
 # USER="$(id -u -n)"
+sudo chown -R $USER:$USER ~/ws/
 
 # Install dependencies
 rosdep update &&
@@ -20,3 +21,6 @@ cd ~/ws &&
     colcon build --packages-up-to f110_gym --base-paths ~/ws \
         --cmake-args "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_EXPORT_COMPILE_COMMANDS=On" \
         -Wall -Wextra -Wpedantic --cmake-clean-cache
+
+cd ~/ws/src/race_stack &&
+    ./.vscode/build.sh Release

@@ -26,7 +26,7 @@ else
         PACKAGES="--packages-up-to $2"
     fi
 fi
-
+cd ~/ws
 colcon build \
     $PACKAGES \
     --base-paths ~/ws \

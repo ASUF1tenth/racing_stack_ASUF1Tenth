@@ -50,7 +50,6 @@ USER root
 # Clean up
 RUN rm -rf /tmp/.install_utils
 
-RUN chown -R $USER:$USER /home/ws
 USER $USER
-
+WORKDIR /home/$USER/ws
 CMD ["/bin/bash"]

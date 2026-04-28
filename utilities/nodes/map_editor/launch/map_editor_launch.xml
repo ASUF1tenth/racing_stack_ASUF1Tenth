@@ -1,5 +1,5 @@
 <launch>
-    <arg name="map_name" description="Name of the map to be used, found in stack_master/maps" />
+    <arg name="map_name" default="latest" description="Name of the map to be used, found in stack_master/maps, if nothing is set 'default' is used" />
     <arg name="reverse" default="False"
         description="Set True if you want reverse direction of raceline" />
     <arg name="map_editor_mapping" default="False"
@@ -20,6 +20,14 @@
     <!-- Crawl backwards to find the maps in the src folder. -->
     <let name="map_src_path"
         value="$(find-pkg-prefix stack_master)/../../src/race_stack/stack_master/maps/$(var map_name)" />
+
+    <node pkg="stack_master" name="global_parameters" exec="global_parameter_node">
+        <param name="racecar_version" value="$(var racecar_version)" />
+        <param name="sim" value="$(var sim)" />
+        <param name="map_path" value="$(var map_path)" />
+        
+        <param name="use_sim_time" value="$(var sim)" />
+    </node>
 
     <!-- Mapping but only want to get .png, .yaml and .pbstream without global waypoints calc -->
     <group if="$(var map_editor_mapping)">

@@ -31,7 +31,7 @@ setup_cache: ## Create cache folder structure
 	@echo "Creating ros cache directories..."
 	mkdir -p $(CACHE_DIR)/build \
 		$(CACHE_DIR)/install \
-		$(CACHE_DIR)/logs
+		$(CACHE_DIR)/log
 	@echo "Cache directories ready at $(CACHE_DIR)"
 
 
@@ -52,7 +52,7 @@ build: ## Build the base workspace
 	fi
 	@echo "Base workspace built successfully."
 
-launch_sim:
+launch:
 	@echo "Detecting system architecture..."
 	@if [ "$$(uname -m)" = "x86_64" ]; then \
 		export SERVICE_NAME="x86"; \
@@ -70,7 +70,7 @@ launch_sim:
 
 edit-json-arm:
 	@echo "If on an ARM based device, please edit devcontainer.json as follows"
-	@echo "Edit the service and runServices to end with _arm and not _x86"
+	@echo "Edit the service and runServices to end with arm and not x86"
 	@echo "Change display from '\$${localEnv:DISPLAY}' to ':501'"
 	@printf "Have you updated it if needed?  (y/N): " && read ans && [ "$$ans" = "y" -o "$$ans" = "Y" ] || (echo "Aborted."; exit 1)
 	@echo "✅ Proceeding with build..."
