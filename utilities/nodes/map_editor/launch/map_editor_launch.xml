@@ -4,7 +4,7 @@
         description="Set True if you want reverse direction of raceline" />
     <arg name="map_editor_mapping" default="False"
         description="Set True if you want to map live on the car, False if you want to post-process a map." />
-    <arg name="racecar_version" default=""
+    <arg name="racecar_version" default="$(env RACECAR_VERSION)"
         description="Physical description of the car. Only relevant if map_editor_mapping is True." />
     <let name="sensors_config" value="$(find-pkg-share stack_master)/config/sensors.yaml" />
     <let name="mux_config" value="$(find-pkg-share stack_master)/config/mux.yaml" />
@@ -12,6 +12,7 @@
         value="$(find-pkg-share stack_master)/config/$(var racecar_version)/joy_teleop.yaml" />
     <let name="vesc_config"
         value="$(find-pkg-share stack_master)/config/$(var racecar_version)/vesc.yaml" />
+    <let name="map_path" value="$(find-pkg-share stack_master)/maps/$(var map_name)" />
 
     <!-- Start RViz -->
     <node pkg="rviz2" exec="rviz2" name="rviz2"
@@ -23,10 +24,9 @@
 
     <node pkg="stack_master" name="global_parameters" exec="global_parameter_node">
         <param name="racecar_version" value="$(var racecar_version)" />
-        <param name="sim" value="$(var sim)" />
-        <param name="map_path" value="$(var map_path)" />
-        
-        <param name="use_sim_time" value="$(var sim)" />
+        <param name="sim" value="false" />
+        <param name="map_path" value="" />
+        <param name="use_sim_time" value="false" />
     </node>
 
     <!-- Mapping but only want to get .png, .yaml and .pbstream without global waypoints calc -->

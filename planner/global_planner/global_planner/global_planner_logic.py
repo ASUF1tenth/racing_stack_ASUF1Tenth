@@ -3,8 +3,11 @@ import sys
 import cv2
 import copy
 import yaml
+import shutil
 import subprocess
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from typing import Tuple, Callable
 from matplotlib.widgets import Button
@@ -48,6 +51,7 @@ class GlobalPlannerLogic:
                  create_map_: bool,
                  map_name_: str,
                  map_dir_: str,
+                 backup_dir_: str,
                  finish_script_path_: str,
                  input_path_: str,
                  show_plots_: bool = False,
@@ -71,7 +75,7 @@ class GlobalPlannerLogic:
         self.map_editor_mode = map_editor_mode_
         self.compute_global_traj = not self.map_editor_mode
         self.create_map = create_map_
-
+        self.backup_dir = backup_dir_
         # Output parameters
         self.map_name = map_name_
         '''desired map name.'''
@@ -543,6 +547,12 @@ class GlobalPlannerLogic:
             None
         """
         # create a folder 'map_name' in the data folder and raise an error if it already exists
+        if self.map_name == 'latest':
+            if self.map_dir.exists():
+                if self.backup_dir.exists():
+                    shutil.rmtree(self.backup_dir)
+                shutil.move(str(self.map_dir), str(self.backup_dir))
+                self.logwarn(f"Map directory already exists. Backed up the old map to {self.backup_dir}")
         try:
             os.makedirs(self.map_dir)
         except OSError as e:
@@ -551,7 +561,7 @@ class GlobalPlannerLogic:
 
         self.loginfo(f'Successfully created the folder {self.map_dir}')
 
-        def save_map_to_directory(map_dir: str, map_name: str):
+        def save_map_to_directory(map_dir: str, map_name: str) -> None:
             img_path = os.path.join(map_dir, map_name + '.png')
             flipped_map = cv2.flip(filtered_map, 0)
             cv2.imwrite(img_path, flipped_map)
@@ -565,7 +575,6 @@ class GlobalPlannerLogic:
 
             with open(os.path.join(self.map_dir, self.map_name + ".yaml"), 'w') as file:
                 _ = yaml.dump(dict_map, file, default_flow_style=False)
-
         # write image as png and a yaml file in the folder
         save_map_to_directory(self.map_dir, self.map_name)
         save_map_to_directory(self.map_dir, 'pf_map')

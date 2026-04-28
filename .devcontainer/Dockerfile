@@ -1,4 +1,4 @@
-ARG IMAGE=ros:humble-robot
+ARG IMAGE=ros:humble-desktop
 FROM ${IMAGE}
 ARG PLATFORM=arm
 ARG USER
@@ -13,13 +13,13 @@ RUN if [[ "$(uname -m)" == "aarch64" ]] && [[ "$PLATFORM" == "jet" ]]; then \
     fi; \
     elif [[ "$(uname -m)" == "arm64" ]] && [[ "$PLATFORM" == "arm" ]]; then \
     echo "Building for Apple ARM architecture..."; \
-    if [[ "$IMAGE" != "ros:humble-ros-base" ]]; then \
+    if [[ "$IMAGE" != "ros:humble-desktop" ]]; then \
     echo "Error: The selected base image is wrong."; \
     exit 1; \
     fi; \
     elif [[ "$(uname -m)" == "x86_64" ]] && [[ "$PLATFORM" == "x86" ]]; then \
     echo "Building for x86 architecture..."; \
-    if [[ "$IMAGE" != "ros:humble-ros-base" ]]; then \
+    if [[ "$IMAGE" != "ros:humble-desktop" ]]; then \
     echo "Error: The selected base image is wrong."; \
     exit 1; \
     fi; \

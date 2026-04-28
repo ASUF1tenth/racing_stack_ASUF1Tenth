@@ -40,16 +40,6 @@ class GlobalPlanner(Node):
 
         # get map source path
         self.map_dir = get_data_path('maps/' + self.map_name)
-
-        if self.map_name == 'latest':
-            backup_dir = get_data_path('maps/backup')
-            if backup_dir.exists():
-                shutil.rmtree(backup_dir)
-            if self.map_dir.exists():
-                shutil.move(str(self.map_dir), str(backup_dir))
-                self.get_logger().info("Moved 'latest' map to 'backup'.")
-            self.map_dir.mkdir(parents=True, exist_ok=True)
-
         # use watershed algorithm to find the centerline
         self.watershed = True
 
@@ -61,6 +51,7 @@ class GlobalPlanner(Node):
             self.create_map,
             self.map_name,
             self.map_dir,
+            get_data_path('maps/backup'),
             get_data_path('scripts/finish_map.sh'),
             os.path.join(get_package_share_directory('stack_master'), 'config', 'global_planner'),
             self.show_plots,
@@ -168,7 +159,6 @@ class GlobalPlanner(Node):
         self.shortest_path_waypoints_markers_pub.publish(glb_sp_markers)
         self.map_infos_pub.publish(map_infos)
         self.est_lap_time_pub.publish(est_lap_time)
-
 
 def main(args=None):
     rclpy.init(args=args)

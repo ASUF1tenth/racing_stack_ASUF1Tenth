@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <launch>
     <arg name="mapping_bool" default="True"/>
-    <arg name="racecar_version" default="NUC2"/>
     <arg name="map_name" default="hangar" />
     <arg name="frenet_bool" default="False" />
     <arg name="skip_early_fusion" default="False" />

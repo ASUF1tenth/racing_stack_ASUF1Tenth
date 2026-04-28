@@ -36,6 +36,7 @@ x-common-settings: &common-settings
     - RCUTILS_COLORIZED_OUTPUT=1
     - TERM=xterm-256color
     - RMW_IMPLEMENTATION=rmw_zenoh_cpp
+    - RACECAR_VERSION=${RACECAR_VERSION:-NUC1}
 
 services:
   jet:
@@ -64,7 +65,6 @@ services:
       dockerfile: ./.devcontainer/Dockerfile
       args:
         <<: *user-args
-        IMAGE: ros:humble-ros-base
         PLATFORM: x86
     container_name: forzaeth_devcontainer_x86
     image: race_stack:humble_x86
@@ -75,7 +75,6 @@ services:
       dockerfile: ./.devcontainer/Dockerfile
       args:
         <<: *user-args
-        IMAGE: ros:humble-ros-base
         PLATFORM: arm
     container_name: forzaeth_devcontainer_arm
     image: race_stack:humble_arm
