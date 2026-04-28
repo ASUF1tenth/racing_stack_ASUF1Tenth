@@ -4,9 +4,10 @@
 XAUTH=$HOME/.Xauthority
 touch $XAUTH
 export XAUTH_LOC=$XAUTH
-if [ -z "$DISPLAY" ] || [ "${DISPLAY:0:1}" != ":" ]; then
-    echo "DISPLAY variable is not set. Not running xhost."
-    exit 0
+
+if [[ "$(uname)" == "Darwin" || $DISPLAY == "" ]]; then
+    echo "Running on macOS or no display available. Skipping Xauthority setup."
+else
+    xhost +local:$USER
 fi
-xhost +local:$USER
 

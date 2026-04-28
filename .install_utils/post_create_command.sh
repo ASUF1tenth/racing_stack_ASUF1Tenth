@@ -2,7 +2,6 @@
 
 # Setup permissions
 # USER="$(id -u -n)"
-sudo chown -R $USERNAME /home/$USERNAME/ws/
 
 # Install dependencies
 rosdep update &&

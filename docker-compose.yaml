@@ -1,19 +1,128 @@
+x-common-build-settings: &common-build-settings
+  context: .
+  pull: false
+
+x-user-args: &user-args
+  USER: ${USER}
+  UID: ${HOST_UID} # user id must be saved to an environment variable, can be done with `export UID=$(id -u)`
+  GID: ${HOST_GID} # group id must be saved to an environment variable, can be done with `export GID=$(id -g)`
+
+x-dockerfile: &dockerfile .devcontainer/Dockerfile
+x-base-dockerfile: &base-dockerfile .devcontainer/Dockerfile.base
+
+x-common-settings: &common-settings
+  network_mode: host
+  ipc: host
+  privileged: true
+  shm_size: "1gb"
+  post_start:
+    - command: source /home/${USER}/ws/src/race_stack/.devcontainer/xauth_setup.sh
+  command: tail -f /dev/null
+  volumes:
+    - /dev:/dev
+    - $HOME/.Xauthority:/tmp/.Xauthority
+    - /tmp/.X11-unix:/tmp/.X11-unix
+    - ./:/home/${USER}/ws/src/race_stack:rw
+    - ../race_stack_cache/humble/build:/home/${USER}/ws/build:rw
+    - ../race_stack_cache/humble/install:/home/${USER}/ws/install:rw
+    - ../race_stack_cache/humble/logs:/home/${USER}/ws/logs:rw
+    - .vscode:/home/${USER}/ws/.vscode:rw
+  environment:
+    - DISPLAY=${DISPLAY}
+    - XAUTHORITY=/tmp/.Xauthority
+    - USER=${USER}
+    - USERNAME=${USER}
+    - ROS_LOCALHOST_ONLY=0
+    - ROS_DOMAIN_ID=42
+    - RCUTILS_COLORIZED_OUTPUT=1
+    - RMW_IMPLEMENTATION=rmw_zenoh_cpp
+
 services:
-  nuc:
+  # BASE IMAGES (to not be used directly)
+  base_arm:
     build:
-      context: .
-      dockerfile: .devcontainer/Dockerfile.x86
+      <<: *common-build-settings
+      dockerfile: *base-dockerfile
       args:
-        - USERNAME=${USER}
-        - UID=${UID}
-        - GID=${GID}
-    image: nuc_forzaeth_racestack_ros2:humble
+        IMAGE: ros:humble-ros-base
+        PLATFORM: arm
+    image: race_stack:base_arm
+
+  base_jet:
+    build:
+      <<: *common-build-settings
+      dockerfile: *base-dockerfile
+      args:
+        IMAGE: dustynv/ros:noetic-ros-base-l4t-r35.2.1
+        PLATFORM: jet
+    image: race_stack:base_jet
+
+  base_x86:
+    build:
+      <<: *common-build-settings
+      dockerfile: *base-dockerfile
+      args:
+        IMAGE: ros:humble-ros-base
+        PLATFORM: x86
+    image: race_stack:base_x86
+
   jet:
     build:
-      context: .
-      dockerfile: .devcontainer/Dockerfile.arm
+      <<: *common-build-settings
+      dockerfile: *dockerfile
       args:
-        - USERNAME=${USER}
-        - UID=${UID}
-        - GID=${GID}
-    image: jet_forzaeth_racestack_ros2:humble
+        <<: *user-args
+        BASE_IMAGE: base_jet
+    container_name: forzaeth_devcontainer_jet
+    image: race_stack:jet
+    <<: *common-settings
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+  nuc:
+    build:
+      <<: *common-build-settings
+      dockerfile: *dockerfile
+      args:
+        <<: *user-args
+        BASE_IMAGE: base_x86
+    container_name: forzaeth_devcontainer_nuc
+    image: race_stack:nuc
+    <<: *common-settings
+  # SIMULATOR IMAGES
+  sim_x86:
+    build:
+      <<: *common-build-settings
+      dockerfile: *dockerfile
+      args:
+        <<: *user-args
+        BASE_IMAGE: base_x86
+    container_name: forzaeth_devcontainer_sim_x86
+    image: race_stack:sim_x86
+    <<: *common-settings
+  sim_arm:
+    build:
+      <<: *common-build-settings
+      dockerfile: *dockerfile
+      args:
+        <<: *user-args
+        BASE_IMAGE: base_arm
+    container_name: forzaeth_devcontainer_sim_arm
+    image: race_stack:sim_arm
+    <<: *common-settings
+  sim_jet:
+    build:
+      <<: *common-build-settings
+      dockerfile: *dockerfile
+      args:
+        <<: *user-args
+        BASE_IMAGE: base_jet:latest
+    container_name: forzaeth_devcontainer_sim_jet
+    image: race_stack:sim_jet
+    <<: *common-settings
