@@ -20,7 +20,7 @@ Accompanying this repository, a paper titled *ForzaETH Race Stack - Scaled Auton
 
 ## Installation
 
-We provide an installation guide [here](.docker_utils/README.md). 
+We provide an installation guide [here](.install_utils/README.md). 
 
 Or check out our [video playlist on Youtube](https://www.youtube.com/playlist?list=PLMzSGo5LtaW9cgdwHB_FnX3qlAYx7P6JI):  
 <a href="https://www.youtube.com/watch?v=A9Clg1n6rII">

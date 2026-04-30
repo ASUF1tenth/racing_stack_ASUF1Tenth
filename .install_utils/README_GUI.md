@@ -19,13 +19,9 @@ non-network local connections being added to access control list
 xhost:  must be on local machine to add or remove hosts.
 ```
 
-3. run the container with the appropriate script. If had you never run the container, running `main_dock.sh` should be fine, otherwise consider attaching to the already built container with `main_attach_dock.sh`.
-```bash
-.docker_utils/main_dock.sh
-```
+3. run the container with the appropriate script. 
 
 4. Enjoy a terminal with GUI forwarding!
-
 
 ## GUI applications in remote VSCode devcontainers
 Due to the complicatedness of how a VSCode container is spun up, connecting to GUI applications requires a bit more involvement and a secondary SSH connection, to which we can relay the X forwarding.
@@ -68,3 +64,9 @@ export DISPLAY=localhost:10.0
  
 6. Enjoy a terminal with GUI forwarding!
 
+## Mac Support
+If you are using a macbook X-Forwarding does not work. However you can use [this](https://github.com/ETH-PBL/remote-novnc) to setup a vnc session. You can then use your macbook as screen for the car by running:
+
+```
+export DISPLAY=<YOUR_IP>:501
+```

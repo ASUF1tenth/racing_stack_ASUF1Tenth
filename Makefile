@@ -12,7 +12,7 @@ CACHE_DIR := ../race_stack_cache/humble
 	setup_cache \
 	build \
 	launch\
-	fix_repo_tokens
+	export_env
 
 help: ## Show available targets and their descriptions
 	@echo "\n\033[33mHelper Makefile for the ForzaETH race_stack setup.\033[0m"
