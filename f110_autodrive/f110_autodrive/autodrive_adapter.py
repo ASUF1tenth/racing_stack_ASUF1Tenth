@@ -15,12 +15,30 @@ class F110AutoDriveAdapter(Node):
         self.declare_parameter('max_steer_rad', 0.4189)  # ~24 degrees
         self.declare_parameter('Kff_lin', 0.04)
         self.declare_parameter('Kff_quad', 0.000139)
+        self.declare_parameter('K_steer', 0.15)
+        self.declare_parameter('K_p', 0.0)
+        self.declare_parameter('K_i', 0.0)
+        self.declare_parameter('e_zone', 0.5)
+        self.declare_parameter('I_max', 0.2)
+        self.declare_parameter('K_d', 0.0)
+        self.declare_parameter('alpha', 0.25)
 
         self.max_steer_rad = self.get_parameter('max_steer_rad').value
         self.Kff_lin = self.get_parameter('Kff_lin').value
         self.Kff_quad = self.get_parameter('Kff_quad').value
+        self.K_steer = self.get_parameter('K_steer').value
+        self.K_p = self.get_parameter('K_p').value
+        self.K_i = self.get_parameter('K_i').value
+        self.e_zone = self.get_parameter('e_zone').value
+        self.I_max = self.get_parameter('I_max').value
+        self.K_d = self.get_parameter('K_d').value
+        self.alpha = self.get_parameter('alpha').value
 
         self.current_speed = 0.0
+        self.I_accum = 0.0
+        self.last_callback_time = None
+        self.last_error = 0.0
+        self.d_error_filtered = 0.0
 
         # Subscriptions from AutoDRIVE
         self.lidar_sub = self.create_subscription(
@@ -98,11 +116,47 @@ class F110AutoDriveAdapter(Node):
         u_steer = target_steering_angle / self.max_steer_rad
         u_steer = max(-1.0, min(1.0, u_steer))
 
-        # 2. Compute throttle command using quadratic feedforward control (non-negative clamping)
+        # 2. Compute dt (time difference) for integration
+        time_now = self.get_clock().now()
+        if self.last_callback_time is None:
+            dt = 0.0
+        else:
+            dt = (time_now - self.last_callback_time).nanoseconds / 1e9
+            if dt <= 0.0:
+                dt = 0.0
+            elif dt > 0.1:
+                dt = 0.1
+        self.last_callback_time = time_now
+
+        # 3. Compute throttle command using quadratic feedforward control + steering compensation + ID zone feedback
+        e_v = target_speed - self.current_speed
+
+        # Calculate derivative error with first-order low-pass filter
+        if dt > 0.0:
+            d_error_raw = (e_v - self.last_error) / dt
+            self.d_error_filtered = self.alpha * d_error_raw + (1.0 - self.alpha) * self.d_error_filtered
+        else:
+            self.d_error_filtered = 0.0
+        self.last_error = e_v
+
         if target_speed <= 0.01:
             u_throttle = 0.0
+            self.I_accum = 0.0  # Reset integrator when vehicle is stopped
+            self.d_error_filtered = 0.0
         else:
-            u_throttle = (self.Kff_quad * (target_speed ** 2)) + (self.Kff_lin * target_speed)
+            # Bounded feedback zone check
+            if abs(e_v) < self.e_zone:
+                self.I_accum += e_v * dt
+                self.I_accum = max(-self.I_max, min(self.I_max, self.I_accum))
+                u_feedback = (self.K_p * e_v) + (self.K_i * self.I_accum) + (self.K_d * self.d_error_filtered)
+            else:
+                self.I_accum = 0.0  # Reset/disable integrator outside the zone
+                self.d_error_filtered = 0.0
+                u_feedback = 0.0
+
+            u_throttle_base = (self.Kff_quad * (target_speed ** 2)) + (self.Kff_lin * target_speed)
+            u_throttle_compensated = u_throttle_base * (1.0 + self.K_steer * (u_steer ** 2))
+            u_throttle = u_throttle_compensated + u_feedback
             u_throttle = max(0.0, min(1.0, u_throttle))
 
         # Publish normalized commands to AutoDRIVE

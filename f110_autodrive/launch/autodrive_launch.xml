@@ -3,10 +3,24 @@
   <arg name="max_steer_rad" default="0.4189"/>
   <arg name="Kff_lin" default="0.04"/>
   <arg name="Kff_quad" default="0.000139"/>
+  <arg name="K_steer" default="0.15"/>
+  <arg name="K_p" default="0.0"/>
+  <arg name="K_i" default="0.0"/>
+  <arg name="e_zone" default="0.5"/>
+  <arg name="I_max" default="0.2"/>
+  <arg name="K_d" default="0.0"/>
+  <arg name="alpha" default="0.25"/>
 
   <node pkg="f110_autodrive" exec="autodrive_adapter" name="autodrive_adapter" output="screen">
     <param name="max_steer_rad" value="$(var max_steer_rad)"/>
     <param name="Kff_lin" value="$(var Kff_lin)"/>
     <param name="Kff_quad" value="$(var Kff_quad)"/>
+    <param name="K_steer" value="$(var K_steer)"/>
+    <param name="K_p" value="$(var K_p)"/>
+    <param name="K_i" value="$(var K_i)"/>
+    <param name="e_zone" value="$(var e_zone)"/>
+    <param name="I_max" value="$(var I_max)"/>
+    <param name="K_d" value="$(var K_d)"/>
+    <param name="alpha" value="$(var alpha)"/>
   </node>
 </launch>

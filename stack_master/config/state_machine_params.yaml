@@ -22,4 +22,3 @@ state_machine:
 
     ftg_threshold_speed: 0.1 # [m/s] speed threshold below which we start a timer for activating FTG
     ftg_timer_sec: 3. # [s] time we have to stay slower than the `ftg_threshold_speed` threshold before we activate FTG
-

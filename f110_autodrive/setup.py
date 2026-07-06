@@ -24,6 +24,8 @@ setup(
     entry_points={
         'console_scripts': [
             'autodrive_adapter = f110_autodrive.autodrive_adapter:main',
+            'dummy_publisher = f110_autodrive.dummy_publisher:main',
+            'autodrive_controller = f110_autodrive.autodrive_controller_wrapper:main',
         ],
     },
 )
