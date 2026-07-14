@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 import os
 from glob import glob
 
@@ -7,7 +7,7 @@ package_name = 'state_estimation'
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name],
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -19,10 +19,14 @@ setup(
     zip_safe=True,
     maintainer='forzapblnuc',
     maintainer_email='nicolas.baumann@pbl.ee.ethz.ch',
-    description='Handles Localisation and Fusion of sensors for localisation',
+    description='Handles Localisation and Fusion of sensors for localisation, including the EKF and UKF state estimation nodes',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['carstate_node = state_estimation.carstate_node:main'],
+        'console_scripts': [
+            'carstate_node = state_estimation.carstate_node:main',
+            'ekf_node = state_estimation.ekf_node.ekf_node:main',
+            'ukf_node = state_estimation.ukf_node.ukf_node:main',
+        ],
     },
 )
