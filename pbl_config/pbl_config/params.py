@@ -6,10 +6,12 @@ type_arr = ["not_set", "bool_value", "integer_value", "double_value", "string_va
                          "byte_array_value", "bool_array_value", "integer_array_value",
                          "double_array_value", "string_array_value"]
 
-def get_remote_parameter(node, remote_node_name, param_name):
+def get_remote_parameter(node, remote_node_name, param_name, default=None):
         cli = node.create_client(GetParameters, remote_node_name + '/get_parameters')
         while not cli.wait_for_service(timeout_sec=1):
-            node.get_logger().info('service not available, waiting again...')
+            node.get_logger().info('service not available, returning default value for parameter: %s' % param_name)
+            if default is not None:
+                return default
         req = GetParameters.Request()
         req.names = [param_name]
         future = cli.call_async(req)
@@ -22,4 +24,7 @@ def get_remote_parameter(node, remote_node_name, param_name):
                     return getattr(res.values[0], type_arr[res.values[0].type])
                 except Exception as e:
                     node.get_logger().warn('Service call failed %r' % (e,))
-                break
+                    if default is not None:
+                        return default
+                    else:
+                        raise e

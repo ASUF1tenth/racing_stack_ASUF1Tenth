@@ -289,12 +289,12 @@ class Controller(Node):
     def init_ftg_controller(self):
 
         #TODO fix to work without alternative value
-        self.state_machine_debug = self.get_remote_parameter('state_machine', 'debug')
-        self.state_machine_safety_radius = self.get_remote_parameter('state_machine', 'safety_radius')
-        self.state_machine_max_lidar_dist = self.get_remote_parameter('state_machine', 'max_lidar_dist')
-        self.state_machine_max_speed = self.get_remote_parameter('state_machine', 'max_speed')
-        self.state_machine_range_offset = self.get_remote_parameter('state_machine', 'range_offset')
-        self.state_machine_track_width = self.get_remote_parameter('state_machine', 'track_width')
+        self.state_machine_debug = get_remote_parameter(self, 'state_machine', 'debug')
+        self.state_machine_safety_radius = get_remote_parameter(self, 'state_machine', 'safety_radius')
+        self.state_machine_max_lidar_dist = get_remote_parameter(self, 'state_machine', 'max_lidar_dist')
+        self.state_machine_max_speed = get_remote_parameter(self, 'state_machine', 'max_speed')
+        self.state_machine_range_offset = get_remote_parameter(self, 'state_machine', 'range_offset')
+        self.state_machine_track_width = get_remote_parameter(self, 'state_machine', 'track_width')
 
         self.get_logger().info(f"FTG Controller parameters: {self.state_machine_debug}, {self.state_machine_safety_radius}, {self.state_machine_max_lidar_dist}, {self.state_machine_max_speed}, {self.state_machine_range_offset}, {self.state_machine_track_width}")
 
@@ -306,26 +306,6 @@ class Controller(Node):
             max_speed=self.state_machine_max_speed,
             range_offset=self.state_machine_range_offset,
             track_width=self.state_machine_track_width)
-
-
-
-    def get_remote_parameter(self, remote_node_name, param_name):
-        cli = self.create_client(GetParameters, remote_node_name + '/get_parameters')
-        while not cli.wait_for_service(timeout_sec=1):
-            self.get_logger().info('service not available, waiting again...')
-        req = GetParameters.Request()
-        req.names = [param_name]
-        future = cli.call_async(req)
-
-        while rclpy.ok():
-            rclpy.spin_once(self)
-            if future.done():
-                try:
-                    res = future.result()
-                    return getattr(res.values[0], self.type_arr[res.values[0].type])
-                except Exception as e:
-                    self.get_logger().warn('Service call failed %r' % (e,))
-                break
 
 
     #############
