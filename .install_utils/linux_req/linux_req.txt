@@ -25,3 +25,4 @@ ros-humble-rmw-zenoh-cpp
 ros-humble-rviz2
 python3-tk
 ros-humble-imu-pipeline
+ros-humble-rqt*
