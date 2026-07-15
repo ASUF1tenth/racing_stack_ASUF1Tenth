@@ -124,7 +124,7 @@ def launch_setup(context, *args, **kwargs):
         executable='static_transform_publisher',
         name='static_baselink_to_3dlidar',
         arguments=[
-            '--x', '0.0.262377',
+            '--x', '0.262377',
             '--y', '0.043761',
             '--z', '0.120451',
             '--qx', '-0.0003105',
