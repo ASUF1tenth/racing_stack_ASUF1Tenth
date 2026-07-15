@@ -26,3 +26,4 @@ ros-humble-rviz2
 python3-tk
 ros-humble-imu-pipeline
 ros-humble-rqt*
+ros-humble-realsense2-*
