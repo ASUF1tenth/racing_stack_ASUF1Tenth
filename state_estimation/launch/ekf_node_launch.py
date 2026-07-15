@@ -8,9 +8,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('model_type', default_value='point_mass_model'),
         DeclareLaunchArgument('racecar_version', default_value='none'),
-        DeclareLaunchArgument('floor', default_value='dubi_hoons'),
+        DeclareLaunchArgument('floor', default_value='dubi'),
 
-        DeclareLaunchArgument('odom_vesc_topic', default_value='/vesc/odom'),
+        DeclareLaunchArgument('odom_vesc_topic', default_value='/odom'),
         DeclareLaunchArgument('imu_topic', default_value='/imu'),
         DeclareLaunchArgument('odom_topic', default_value='/state_estimation/odom'),
 

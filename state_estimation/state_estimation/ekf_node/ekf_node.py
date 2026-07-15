@@ -36,7 +36,7 @@ class EkfNode(Node):
         self.declare_parameter('model_type', 'point_mass_model')
         self.declare_parameter('odom_topic', '/state_estimation/odom')
         self.declare_parameter('imu_topic', '/imu')
-        self.declare_parameter('vesc_topic', '/vesc/odom')
+        self.declare_parameter('vesc_topic', '/odom')
         self.declare_parameter('floor', rclpy.Parameter.Type.STRING)
         self.declare_parameter('R_imu', rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('R_vesc', rclpy.Parameter.Type.DOUBLE_ARRAY)
@@ -128,7 +128,7 @@ class EkfNode(Node):
         self.create_subscription(Imu, self.IMU_TOPIC, self.imu_callback, 1)
         self.create_subscription(Odometry, self.VESC_TOPIC, self.vesc_odom_callback, 1)
         self.create_subscription(AckermannDriveStamped, '/drive', self.ackermann_callback, 1)
-        self.create_subscription(AckermannDriveStamped, '/manual', self.ackermann_callback, 1)
+        self.create_subscription(AckermannDriveStamped, '/ackermann_cmd', self.ackermann_callback, 1)
 
         # Publisher
         self.odom_pub = self.create_publisher(Odometry, self.ODOM_TOPIC, 1)
@@ -347,7 +347,7 @@ class EkfNode(Node):
             self.fresh_vesc = False
 
         if not initialized:
-            # self.get_logger().info(f"[EKF Node] Initial state not set yet")
+            self.get_logger().log(f"[EKF Node] Initial state not set yet", rclpy.logging.LoggingSeverity.WARN, once=True)
             return
 
         now = self.get_clock().now().nanoseconds / 1e9
