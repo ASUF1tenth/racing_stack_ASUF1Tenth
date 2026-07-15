@@ -4,8 +4,7 @@
 # into it at image-build time. Runs at `docker compose build` (make build).
 set -e
 
-BASALT_REPO_URL=https://github.com/berndpfrommer/basalt_ros.git
-BASALT_REF=1264f86
+BASALT_REPO_URL=https://github.com/ForzaETH/basalt_ros.git
 BASALT_WS=/opt/basalt_ws
 
 apt update
@@ -26,7 +25,6 @@ apt install -y \
 
 mkdir -p "$BASALT_WS/src"
 git clone "$BASALT_REPO_URL" "$BASALT_WS/src/basalt_ros"
-git -C "$BASALT_WS/src/basalt_ros" checkout "$BASALT_REF"
 cd "$BASALT_WS"
 vcs import --recursive < "$BASALT_WS/src/basalt_ros/basalt_ros.repos"
 vcs import --recursive < "$BASALT_WS/src/basalt_wrapper/basalt_wrapper.repos"
