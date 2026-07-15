@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import threading
 import time
 
@@ -11,6 +12,9 @@ from nav_msgs.msg import Odometry
 from pbl_config import load_car_config_ros, load_pacejka_tire_config_ros, get_remote_parameter
 from rclpy.node import Node
 from rcl_interfaces.msg import SetParametersResult
+
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
 
 from . import models
 from .sensors import ImuSensor, OdomSensor
@@ -46,8 +50,8 @@ class EkfNode(Node):
         self.declare_parameter('Q', rclpy.Parameter.Type.DOUBLE_ARRAY)
 
         self.Hz = self.get_parameter('frequency').value
-        self.racecar_version = get_remote_parameter(self, 'global_parameters', 'racecar_version')
-        self.floor = get_remote_parameter(self, 'global_parameters', 'floor')
+        self.racecar_version = os.environ.get('RACECAR_VERSION', 'NUC6')
+        self.floor = get_remote_parameter(self, 'global_parameters', 'floor', default='dubi')
 
         self.model_type = self.get_parameter('model_type').value
         self.ODOM_TOPIC = self.get_parameter('odom_topic').value
@@ -56,6 +60,9 @@ class EkfNode(Node):
         self.VIO_TOPIC = self.get_parameter('vio_topic').value
 
         self.get_logger().info(f"[EKF Node] Racecar is: {self.racecar_version}")
+
+        self.tf_broadcaster = TransformBroadcaster(self)
+
 
         # Get covariance matrices
         self.R_imu = np.diag(self.get_parameter('R_imu').value)
@@ -150,7 +157,7 @@ class EkfNode(Node):
 
         self.timer = self.create_timer(1.0 / self.Hz, self.timer_callback)
 
-        self.get_logger().info(f"[EKF Node] EKF node initialized succesfully using {self.model_type}")
+        self.get_logger().info(f"[EKF Node] EKF node initialized sesfully using {self.model_type}")
 
     def parameter_callback(self, params):
         self.get_logger().info(f"[EKF Node] Parameters updated: {params}")
@@ -251,6 +258,24 @@ class EkfNode(Node):
         twist_cov[5, 0:2] = self.ekf.P[5, 3:5]
         twist_cov[5, 5] = self.ekf.P[5, 5]
         odom.twist.covariance = twist_cov.flatten().tolist()
+        
+        
+        t = TransformStamped()
+        t.header.stamp = odom.header.stamp
+        t.header.frame_id = 'odom'  # 'odom'
+        t.child_frame_id = 'base_link'    # 'base_link'
+
+        t.transform.translation.x = float(state[0])
+        t.transform.translation.y = float(state[1])
+        t.transform.translation.z = float(state[2])
+        t.transform.rotation.x = float(q[0])
+        t.transform.rotation.y = float(q[1])
+        t.transform.rotation.z = float(q[2])
+        t.transform.rotation.w = float(q[3])
+        
+        
+        self.tf_broadcaster.sendTransform(t)
+
 
         self.odom_pub.publish(odom)
 
@@ -268,6 +293,7 @@ class EkfNode(Node):
             self.get_logger().log(f"[EKF Node] Initial state not set yet", rclpy.logging.LoggingSeverity.WARN, once=True)
             return
 
+        self.get_logger().log(f"[EKF Node] Initial state is set", rclpy.logging.LoggingSeverity.INFO, once=True)
         now = self.get_clock().now().nanoseconds / 1e9
         if self.last_filter_time is None:  # first loop
             self.last_filter_time = now
