@@ -11,11 +11,9 @@ from nav_msgs.msg import Odometry
 from pbl_config import load_car_config_ros, load_pacejka_tire_config_ros, get_remote_parameter
 from rclpy.node import Node
 from rcl_interfaces.msg import SetParametersResult
-from sensor_msgs.msg import Imu
-
-
 
 from . import models
+from .sensors import ImuSensor, OdomSensor
 
 
 class EkfNode(Node):
@@ -25,21 +23,26 @@ class EkfNode(Node):
     Measurement data used:
         - IMU: [psi, vpsi, ax, ay]
         - VESC: [x, y, psi, vx, vy, vpsi]
+        - VIO: [x, y, psi, vx, vy, vpsi]
         - ACKERMANN: [accel, steer_angle]
+
+    Sensors are configured in a single list in __init__ (see self.sensors); adding
+    a new sensor is one line there.
     """
 
     def __init__(self):
         super().__init__('ekf_node')
 
         self.declare_parameter('frequency', 100)
-        # self.declare_parameter('racecar_version', rclpy.Parameter.Type.STRING)
         self.declare_parameter('model_type', 'point_mass_model')
         self.declare_parameter('odom_topic', '/state_estimation/odom')
         self.declare_parameter('imu_topic', '/imu')
         self.declare_parameter('vesc_topic', '/odom')
+        self.declare_parameter('vio_topic', '/basalt/odom')
         self.declare_parameter('floor', rclpy.Parameter.Type.STRING)
         self.declare_parameter('R_imu', rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('R_vesc', rclpy.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('R_vio', rclpy.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('Q', rclpy.Parameter.Type.DOUBLE_ARRAY)
 
         self.Hz = self.get_parameter('frequency').value
@@ -50,12 +53,14 @@ class EkfNode(Node):
         self.ODOM_TOPIC = self.get_parameter('odom_topic').value
         self.IMU_TOPIC = self.get_parameter('imu_topic').value
         self.VESC_TOPIC = self.get_parameter('vesc_topic').value
-        
+        self.VIO_TOPIC = self.get_parameter('vio_topic').value
+
         self.get_logger().info(f"[EKF Node] Racecar is: {self.racecar_version}")
 
         # Get covariance matrices
         self.R_imu = np.diag(self.get_parameter('R_imu').value)
         self.R_vesc = np.diag(self.get_parameter('R_vesc').value)
+        self.R_vio = np.diag(self.get_parameter('R_vio').value)
         self.Q = np.diag(self.get_parameter('Q').value)
 
         # Get Car Parameters
@@ -100,33 +105,32 @@ class EkfNode(Node):
         self.ekf.x = self.model.x_0
         self.ekf.P = self.model.P_0
 
-        # Input and measurement arrays
-        self.imu_data = np.zeros(4)  # [theta, dtheta, ax, ay]
-        self.vesc_data = np.zeros(6)  # [x, y, theta, vx, vy, dtheta]
+        # Control input array
         self.ackermann_data = np.zeros(2)  # [accel, steer_angle]
 
         # General stuff
         self.lock = threading.Lock()
-
         self.last_filter_time = None
-
         self.is_initialized = False
-
-        self.fresh_imu = False
-        self.fresh_vesc = False
-
-        # IMU Exponential moving average filter
-        self.alpha = 0.2
-        self.prev_ax = None
-        self.prev_ay = None
 
         # Commanded velocity deriviation
         self.last_cmd_vel = 0.0
         self.last_cmd_time = None
 
-        # Subscriptions
-        self.create_subscription(Imu, self.IMU_TOPIC, self.imu_callback, 1)
-        self.create_subscription(Odometry, self.VESC_TOPIC, self.vesc_odom_callback, 1)
+        # Sensors. Each sensor owns its own subscription, buffering and EKF update.
+        # Adding a new sensor is a single line here. VIO shares the full-odometry
+        # measurement model with the VESC.
+        self.sensors = [
+            ImuSensor(self, self.IMU_TOPIC, self.R_imu,
+                      self.model.Hx_imu, self.model.HJacobian_imu,
+                      on_init=self.init_state_from_imu),
+            OdomSensor(self, 'vesc', self.VESC_TOPIC, self.R_vesc,
+                       self.model.Hx_vesc, self.model.HJacobian_vesc),
+            OdomSensor(self, 'vio', self.VIO_TOPIC, self.R_vio,
+                       self.model.Hx_vesc, self.model.HJacobian_vesc),
+        ]
+
+        # Control input subscriptions
         self.create_subscription(AckermannDriveStamped, '/drive', self.ackermann_callback, 1)
         self.create_subscription(AckermannDriveStamped, '/ackermann_cmd', self.ackermann_callback, 1)
 
@@ -138,96 +142,40 @@ class EkfNode(Node):
         self.predict_mean_ms = 0.0
         self.predict_max_ms = 0.0
 
-        self.imu_update_count = 0
-        self.imu_update_mean_ms = 0.0
-        self.imu_update_max_ms = 0.0
-
-        self.vesc_update_count = 0
-        self.vesc_update_mean_ms = 0.0
-        self.vesc_update_max_ms = 0.0
-
         self.tot_update_count = 0
         self.tot_update_mean_ms = 0.0
         self.tot_update_max_ms = 0.0
-        
+
         self.add_on_set_parameters_callback(self.parameter_callback)
 
         self.timer = self.create_timer(1.0 / self.Hz, self.timer_callback)
 
         self.get_logger().info(f"[EKF Node] EKF node initialized succesfully using {self.model_type}")
-        
-    
 
-        
     def parameter_callback(self, params):
         self.get_logger().info(f"[EKF Node] Parameters updated: {params}")
         result = SetParametersResult()
-        result.successful = True # Assume success by default
+        result.successful = True  # Assume success by default
         return result
 
-    
+    def init_state_from_imu(self, imu_data):
+        """Seed the filter state from the first IMU orientation reading."""
+        if self.model_type == "single_track_model" or self.model_type == "point_mass_model":
+            self.ekf.x[2] = imu_data[0]
+            self.ekf.x[5] = imu_data[1]
+            self.ekf.P[2, 2] = self.R_imu[0][0]
+            self.ekf.P[5, 5] = self.R_imu[1][1]
+        elif self.model_type == "kinematic_bicycle_model":
+            self.ekf.x[4] = imu_data[0]
+            self.ekf.x[5] = imu_data[1]
+            self.ekf.P[4, 4] = self.R_imu[0][0]
+            self.ekf.P[5, 5] = self.R_imu[1][1]
+
+        self.get_logger().info(f"[EKF Node] Initial yaw set to {imu_data[0]}")
+        self.get_logger().info(f"[EKF Node] Initial omega set to {imu_data[1]}")
+        self.is_initialized = True
 
     # Callbacks
-    def imu_callback(self, msg):
-        with self.lock:
-            # Exponential moving average filter
-            new_ax = msg.linear_acceleration.x
-            new_ay = msg.linear_acceleration.y
-
-            if self.prev_ax is not None:
-                self.imu_data[2] = self.alpha * new_ax + (1 - self.alpha) * self.prev_ax
-                self.imu_data[3] = self.alpha * new_ay + (1 - self.alpha) * self.prev_ay
-            else:  # if it is first measurement
-                self.imu_data[2] = new_ax
-                self.imu_data[3] = new_ay
-
-            self.prev_ax = self.imu_data[2]
-            self.prev_ay = self.imu_data[3]
-
-            self.imu_data[1] = msg.angular_velocity.z
-
-            q = [msg.orientation.x, msg.orientation.y,
-                 msg.orientation.z, msg.orientation.w]
-
-            __, __, yaw = tft.euler_from_quaternion(q)
-            self.imu_data[0] = self.normalize_angle(yaw)
-
-            # initialize filter state
-            if not self.is_initialized:
-                if self.model_type == "single_track_model" or self.model_type == "point_mass_model":
-                    self.ekf.x[2] = self.imu_data[0]
-                    self.ekf.x[5] = self.imu_data[1]
-                    self.ekf.P[2, 2] = self.R_imu[0][0]
-                    self.ekf.P[5, 5] = self.R_imu[1][1]
-                elif self.model_type == "kinematic_bicycle_model":
-                    self.ekf.x[4] = self.imu_data[0]
-                    self.ekf.x[5] = self.imu_data[1]
-                    self.ekf.P[4, 4] = self.R_imu[0][0]
-                    self.ekf.P[5, 5] = self.R_imu[1][1]
-
-                self.get_logger().info(f"[EKF Node] Initial yaw set to {self.imu_data[0]}")
-                self.get_logger().info(f"[EKF Node] Initial omega set to {self.imu_data[1]}")
-                self.is_initialized = True
-
-            self.fresh_imu = True
-
-    def vesc_odom_callback(self, msg):
-        with self.lock:
-            self.vesc_data[0] = msg.pose.pose.position.x
-            self.vesc_data[1] = msg.pose.pose.position.y
-            self.vesc_data[3] = msg.twist.twist.linear.x
-            self.vesc_data[4] = msg.twist.twist.linear.y
-            self.vesc_data[5] = msg.twist.twist.angular.z
-
-            q = [msg.pose.pose.orientation.x,
-                 msg.pose.pose.orientation.y,
-                 msg.pose.pose.orientation.z,
-                 msg.pose.pose.orientation.w]
-            __, __, yaw = tft.euler_from_quaternion(q)
-            self.vesc_data[2] = yaw
-
-            self.fresh_vesc = True
-
     def ackermann_callback(self, msg):
         with self.lock:
             now = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
@@ -261,14 +209,11 @@ class EkfNode(Node):
         print(f"Update Steps Run: {self.tot_update_count}")
         print(f"Mean Execution Time: {self.tot_update_mean_ms:.3f} ms")
         print(f"Peak Execution Time: {self.tot_update_max_ms:.3f} ms")
-        print(f"**** Update IMU****")
-        print(f"Update Steps Run: {self.imu_update_count}")
-        print(f"Mean Execution Time: {self.imu_update_mean_ms:.3f} ms")
-        print(f"Peak Execution Time: {self.imu_update_max_ms:.3f} ms")
-        print(f"**** Update VESC****")
-        print(f"Update Steps Run: {self.vesc_update_count}")
-        print(f"Mean Execution Time: {self.vesc_update_mean_ms:.3f} ms")
-        print(f"Peak Execution Time: {self.vesc_update_max_ms:.3f} ms")
+        for sensor in self.sensors:
+            print(f"**** Update {sensor.name.upper()} ****")
+            print(f"Update Steps Run: {sensor.update_count}")
+            print(f"Mean Execution Time: {sensor.update_mean_ms:.3f} ms")
+            print(f"Peak Execution Time: {sensor.update_max_ms:.3f} ms")
         self.get_logger().info("Shutting down...")
 
     def publish_odometry(self):
@@ -309,23 +254,6 @@ class EkfNode(Node):
 
         self.odom_pub.publish(odom)
 
-    # Custom Residuals
-    def normalize_angle(self, x):
-        x = x % (2 * np.pi)
-        if x > np.pi:
-            x -= 2 * np.pi
-        return x
-
-    def residual_imu(self, a, b):
-        y = a - b
-        y[0] = self.normalize_angle(y[0])
-        return y
-
-    def residual_vesc(self, a, b):
-        y = a - b
-        y[2] = self.normalize_angle(y[2])
-        return y
-
     def timer_callback(self):
         """
         Main Loop of the EKF Node
@@ -333,18 +261,8 @@ class EkfNode(Node):
         with self.lock:
             # Get snapshot of newest measurement data, cmd inputs, and flags to use in prediction and update steps
             initialized = self.is_initialized
-
             u = np.copy(self.ackermann_data)
-
-            fresh_imu = self.fresh_imu
-            fresh_vesc = self.fresh_vesc
-
-            z_imu = np.copy(self.imu_data)
-            z_vesc = np.copy(self.vesc_data)
-
-            # reset flags
-            self.fresh_imu = False
-            self.fresh_vesc = False
+            snapshots = [(sensor, *sensor.snapshot()) for sensor in self.sensors]
 
         if not initialized:
             self.get_logger().log(f"[EKF Node] Initial state not set yet", rclpy.logging.LoggingSeverity.WARN, once=True)
@@ -374,42 +292,10 @@ class EkfNode(Node):
         self.predict_mean_ms += (duration_ms - self.predict_mean_ms) / self.predict_count
 
         t2 = time.perf_counter_ns()
-        # update
-        if fresh_imu:
-            t_imu_start = time.perf_counter_ns()
-
-            self.ekf.update(
-                z=z_imu,
-                HJacobian=self.model.HJacobian_imu,
-                Hx=self.model.Hx_imu,
-                R=self.R_imu,
-                args=u,
-                hx_args=u,
-                residual=self.residual_imu)
-
-            t_imu_end = time.perf_counter_ns()
-            imu_ms = (t_imu_end - t_imu_start) / 1_000_000.0
-            if imu_ms > self.imu_update_max_ms:
-                self.imu_update_max_ms = imu_ms
-            self.imu_update_count += 1
-            self.imu_update_mean_ms += (imu_ms - self.imu_update_mean_ms) / self.imu_update_count
-
-        if fresh_vesc:
-            t_vesc_start = time.perf_counter_ns()
-
-            self.ekf.update(
-                z=z_vesc,
-                HJacobian=self.model.HJacobian_vesc,
-                Hx=self.model.Hx_vesc,
-                R=self.R_vesc,
-                residual=self.residual_vesc)
-
-            t_vesc_end = time.perf_counter_ns()
-            vesc_ms = (t_vesc_end - t_vesc_start) / 1_000_000.0
-            if vesc_ms > self.vesc_update_max_ms:
-                self.vesc_update_max_ms = vesc_ms
-            self.vesc_update_count += 1
-            self.vesc_update_mean_ms += (vesc_ms - self.vesc_update_mean_ms) / self.vesc_update_count
+        # update: apply each sensor's update sequentially when it has fresh data
+        for sensor, fresh, z in snapshots:
+            if fresh:
+                sensor.update(self.ekf, z, u)
 
         t3 = time.perf_counter_ns()
         duration_ms = (t3 - t2) / 1_000_000.0
