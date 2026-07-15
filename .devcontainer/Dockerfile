@@ -57,6 +57,6 @@ USER root
 # Clean up
 RUN rm -rf /tmp/.install_utils
 
-# USER $USER
+USER $USER
 WORKDIR /home/$USER/ws
 CMD ["/bin/bash"]
