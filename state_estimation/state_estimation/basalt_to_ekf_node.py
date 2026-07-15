@@ -1,18 +1,4 @@
 #!/usr/bin/env python3
-#
-# Copyright 2023 Bernd Pfrommer <bernd.pfrommer@gmail.com>
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """Transform Basalt VIO odometry from the camera-IMU body frame to base_link for the EKF."""
 
 import numpy as np
@@ -49,6 +35,7 @@ class BasaltToEkf(Node):
 
         # Static extrinsic base_link <- camera_imu, read from TF.
         self.T_base_imu = self._lookup_extrinsic(tf_timeout)
+        self.T_odom_world = None
 
         # Basalt's odometry carries no angular velocity, read from the raw IMU.
         self._omega = None
@@ -103,8 +90,12 @@ class BasaltToEkf(Node):
         T_world_imu = tft.quaternion_matrix([q.x, q.y, q.z, q.w])
         T_world_imu[:3, 3] = [p.x, p.y, p.z]
         T_world_base = T_world_imu @ tft.inverse_matrix(self.T_base_imu)
-        p_base = T_world_base[:3, 3]
-        q_base = tft.quaternion_from_matrix(T_world_base)
+        if self.T_odom_world is None:
+            self.T_odom_world = tft.inverse_matrix(T_world_base)
+            self.get_logger().info('BasaltToEkf: Initialized world frame alignment!')
+        T_odom_base = self.T_odom_world @ T_world_base
+        p_base = T_odom_base[:3, 3]
+        q_base = tft.quaternion_from_matrix(T_odom_base)
 
         # Velocity: rotate into base_link and add the lever-arm term.
         R_base_imu = self.T_base_imu[:3, :3]
