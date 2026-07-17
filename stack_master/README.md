@@ -17,9 +17,9 @@ A ROS resourcing will be needed from here on.
 
 ### Base System
 ```shell
-ros2 launch stack_master base_system_launch.xml map_name:=<name of mapped track> sim:=<true/fasle> racecar_version:=<NUCX used>
+ros2 launch stack_master base_system_launch.xml sim:=true racecar_version:=SIM
 ```
-  - `<name of mapped track>` is the name of the track you want to run on. It must belong to the list of maps available in the `stack_master/maps` folder.
+  - `map_name` defaults to `glc_ot_ez`. To use a different map: `map_name:=<map name>`
   - `<true/false>` is a boolean value that indicates if you want to run the simulation or the real car. 
   - `<NUCX>` depends on which car you are using. Parameters are available for NUC2, NUC5, NUC6, SIM (the latter represents a dummy car).
 
