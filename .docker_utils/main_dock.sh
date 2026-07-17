@@ -2,7 +2,8 @@
 
 # Script to launch the main docker instance for the pblf110 car
 IMAGE=nuc_forzaeth_racestack_ros2
-FORZETH_DIR=/home/forzapblnuc/ros2_devcontainer/src/race_stack
+FORZETH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mkdir -p "$FORZETH_DIR/../cache/jazzy/"{build,install,log}
 
 docker run --tty \
     --interactive \
