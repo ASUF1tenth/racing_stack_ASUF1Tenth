@@ -7,3 +7,5 @@ Belal made updates to launch files
 There is a branch by planning to work on predictive spliner
 
 Predictive spliner integrated into the stack
+
+<I need to make the packages confilct a permenant fix>

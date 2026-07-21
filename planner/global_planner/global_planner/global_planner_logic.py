@@ -399,10 +399,15 @@ class GlobalPlannerLogic:
             global_trajectory_iqp, bound_r_iqp, bound_l_iqp, est_t_iqp = trajectory_optimizer(
                 input_path=self.input_path, track_name=iqp_centerline_path, curv_opt_type='mincurv_iqp', safety_width=self.safety_width, plot=(
                     self.show_plots and not self.map_editor_mode))
-        except RuntimeError as e:
-            self.logwarn(f"Error during iterative minimum curvature optimization, error: {e}")
-            self.loginfo('Try again later!')
-            return False
+        except (RuntimeError, ValueError) as e:
+            self.logwarn(f"Iterative IQP optimization failed ({e}), falling back to single-pass mincurv...")
+            try:
+                global_trajectory_iqp, bound_r_iqp, bound_l_iqp, est_t_iqp = trajectory_optimizer(
+                    input_path=self.input_path, track_name=iqp_centerline_path, curv_opt_type='mincurv', safety_width=self.safety_width, plot=(
+                        self.show_plots and not self.map_editor_mode))
+            except (RuntimeError, ValueError) as e2:
+                self.logwarn(f"Error during minimum curvature optimization: {e2}")
+                return False
 
         self.map_info_str += f'IQP estimated lap time: {round(est_t_iqp, 4)}s; '
         self.map_info_str += f'IQP maximum speed: {round(np.amax(global_trajectory_iqp[:, 5]), 4)}m/s; '
@@ -437,11 +442,19 @@ class GlobalPlannerLogic:
         self.loginfo('Start reverse Global Trajectory optimization with shortest path...')
 
         self.loginfo('Start Global Trajectory optimization with iterative minimum curvature for overtaking...')
-        global_trajectory_iqp_ot, *_ = trajectory_optimizer(input_path=self.input_path,
-                                                            track_name=iqp_centerline_path,
-                                                            curv_opt_type='mincurv_iqp',
-                                                            safety_width=self.safety_width_sp,
-                                                            plot=(self.show_plots and not self.map_editor_mode))
+        try:
+            global_trajectory_iqp_ot, *_ = trajectory_optimizer(input_path=self.input_path,
+                                                                track_name=iqp_centerline_path,
+                                                                curv_opt_type='mincurv_iqp',
+                                                                safety_width=self.safety_width_sp,
+                                                                plot=(self.show_plots and not self.map_editor_mode))
+        except (RuntimeError, ValueError) as e:
+            self.logwarn(f"Iterative IQP overtaking optimization failed ({e}), falling back to single-pass mincurv...")
+            global_trajectory_iqp_ot, *_ = trajectory_optimizer(input_path=self.input_path,
+                                                                track_name=iqp_centerline_path,
+                                                                curv_opt_type='mincurv',
+                                                                safety_width=self.safety_width_sp,
+                                                                plot=(self.show_plots and not self.map_editor_mode))
 
         # use new iqp path as centerline
         new_cent_with_dist = add_dist_to_cent(centerline_smooth=global_trajectory_iqp_ot[:, 1:3],
@@ -458,9 +471,15 @@ class GlobalPlannerLogic:
 
         # to use iqp as new centerline, set trackname='map_centerline_2', otherwise use track_name='map_centerline'
         # is a bit faster but cuts corner a bit more
-        global_trajectory_sp, bound_r_sp, bound_l_sp, est_t_sp = trajectory_optimizer(
-            input_path=self.input_path, track_name=sp_centerline_path, curv_opt_type='shortest_path', safety_width=self.safety_width_sp, plot=(
-                self.show_plots and not self.map_editor_mode))
+        try:
+            global_trajectory_sp, bound_r_sp, bound_l_sp, est_t_sp = trajectory_optimizer(
+                input_path=self.input_path, track_name=sp_centerline_path, curv_opt_type='shortest_path', safety_width=self.safety_width_sp, plot=(
+                    self.show_plots and not self.map_editor_mode))
+        except (RuntimeError, ValueError) as e:
+            self.logwarn(f"Shortest path optimization failed ({e}), falling back to single-pass mincurv...")
+            global_trajectory_sp, bound_r_sp, bound_l_sp, est_t_sp = trajectory_optimizer(
+                input_path=self.input_path, track_name=sp_centerline_path, curv_opt_type='mincurv', safety_width=self.safety_width_sp, plot=(
+                    self.show_plots and not self.map_editor_mode))
 
         self.est_lap_time = Float32()  # variable which will be published and used in l1_param_optimizer
         self.est_lap_time.data = est_t_sp

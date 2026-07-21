@@ -3,6 +3,7 @@
     <arg name="racecar_version" default="NUC2" /> <!-- NUCX -->
     <arg name="map_name" description="Name of the map to be created" />
     <arg name="sim" default="False" />
+    <arg name="remote" default="False" description="Whether to run in remote mode (Pi 4 runs vesc and lidar)" />
     <let name="sensors_config" value="$(find-pkg-share stack_master)/config/sensors.yaml" />
     <let name="mux_config" value="$(find-pkg-share stack_master)/config/mux.yaml" />
     <let name="joy_teleop_config"
@@ -25,12 +26,22 @@
         </node>
 
         <!-- launch teleop -->
-        <include file="$(find-pkg-share f1tenth_stack)/launch/bringup_launch.py">
-            <arg name="joy_teleop_config" value="$(var joy_teleop_config)" />
-            <arg name="vesc_config" value="$(var vesc_config)" />
-            <arg name="sensors_config" value="$(var sensors_config)" />
-            <arg name="mux_config" value="$(var mux_config)" />
-        </include>
+        <group unless="$(var remote)">
+            <include file="$(find-pkg-share f1tenth_stack)/launch/bringup_launch.py">
+                <arg name="joy_teleop_config" value="$(var joy_teleop_config)" />
+                <arg name="vesc_config" value="$(var vesc_config)" />
+                <arg name="sensors_config" value="$(var sensors_config)" />
+                <arg name="mux_config" value="$(var mux_config)" />
+            </include>
+        </group>
+        <group if="$(var remote)">
+            <include file="$(find-pkg-share f1tenth_stack)/launch/bringup_remote_launch.py">
+                <arg name="joy_teleop_config" value="$(var joy_teleop_config)" />
+                <arg name="vesc_config" value="$(var vesc_config)" />
+                <arg name="sensors_config" value="$(var sensors_config)" />
+                <arg name="mux_config" value="$(var mux_config)" />
+            </include>
+        </group>
 
         <!-- launch SE -->
         <include file="$(find-pkg-share state_estimation)/launch/state_estimation_launch.xml">

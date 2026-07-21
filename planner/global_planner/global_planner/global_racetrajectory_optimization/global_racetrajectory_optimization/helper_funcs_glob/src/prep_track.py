@@ -2,6 +2,17 @@ import numpy as np
 import trajectory_planning_helpers as tph
 import sys
 import matplotlib.pyplot as plt
+from scipy import interpolate, spatial
+
+
+# Fix compatibility issue with SciPy 1.13+ / Python 3.12 where splev return shape causes Euclidean distance 1D error
+def _safe_dist_to_p(t_glob: np.ndarray, path: list, p: np.ndarray):
+    s = np.ravel(interpolate.splev(t_glob, path))
+    return spatial.distance.euclidean(p, s)
+
+
+tph.spline_approximation.dist_to_p = _safe_dist_to_p
+
 
 
 def prep_track(reftrack_imp: np.ndarray,

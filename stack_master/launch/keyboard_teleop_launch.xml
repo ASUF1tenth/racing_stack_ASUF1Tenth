@@ -1,0 +1,19 @@
+<!-- -*- mode: XML -*- -->
+<launch>
+  <arg name="speed" default="0.5" description="Initial speed for keyboard teleop" />
+  <arg name="turn" default="0.34" description="Steering turn angle for keyboard teleop" />
+  <arg name="max_speed" default="1.0" description="Maximum speed ceiling for safety" />
+
+  <!-- 1. Keyboard Twist publisher (opens in a dedicated xterm window to capture TTY keypresses) -->
+  <node pkg="teleop_twist_keyboard" exec="teleop_twist_keyboard" name="teleop_twist_keyboard" output="screen" launch-prefix="xterm -e">
+    <param name="speed" value="$(var speed)" />
+    <param name="turn" value="$(var turn)" />
+  </node>
+
+  <!-- 2. Ackermann bridge node (/cmd_vel -> /teleop) -->
+  <node pkg="stack_master" exec="keyboard_control" name="keyboard_control" output="screen">
+    <param name="topic_name" value="/teleop" />
+    <param name="max_speed" value="$(var max_speed)" />
+    <param name="steering_angle" value="$(var turn)" />
+  </node>
+</launch>

@@ -42,6 +42,7 @@ setup(
     entry_points={
         'console_scripts': [
             'global_parameter_node = stack_master.global_parameter_node:main',
+            'keyboard_control = stack_master.keyboard_control:main',
         ],
     },
 )

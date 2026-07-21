@@ -48,10 +48,10 @@ AckermannToVesc::AckermannToVesc(const rclcpp::NodeOptions & options)
 : Node("ackermann_to_vesc_node", options)
 {
   // get conversion parameters
-  declare_parameter("speed_to_erpm_gain", 1.0); // Example default value of 1.0
-  declare_parameter("speed_to_erpm_offset", 1.0);
-  declare_parameter("steering_angle_to_servo_gain", 1.0);
-  declare_parameter("steering_angle_to_servo_offset", 1.0);
+  declare_parameter("speed_to_erpm_gain", 4614.0); // Example default value of 1.0
+  declare_parameter("speed_to_erpm_offset", 0.0);
+  declare_parameter("steering_angle_to_servo_gain", 0.005555556);
+  declare_parameter("steering_angle_to_servo_offset", 0.5);
   
   get_parameter("speed_to_erpm_gain", speed_to_erpm_gain_);
   get_parameter("speed_to_erpm_offset", speed_to_erpm_offset_);

@@ -58,7 +58,8 @@ def extract_centerline(skeleton, cent_length: float, map_resolution: float, map_
 
     """
     # get contours from skeleton
-    contours, hierarchy = cv2.findContours(skeleton, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    skeleton_uint8 = skeleton.astype(np.uint8) if skeleton.dtype != np.uint8 else skeleton
+    contours, hierarchy = cv2.findContours(skeleton_uint8, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 
     # save all closed contours
     closed_contours = []
