@@ -15,7 +15,7 @@ class CmdVelToAckermann(Node):
 
         self.declare_parameter('topic_name', '/teleop')
         self.declare_parameter('max_speed', 1.0)
-        self.declare_parameter('steering_angle', 0.34)
+        self.declare_parameter('steering_angle', 1.0)
 
         topic_name = self.get_parameter('topic_name').value
         self.max_speed = self.get_parameter('max_speed').value
@@ -52,9 +52,9 @@ class CmdVelToAckermann(Node):
         # steering angle in radians
         angular = msg.angular.z
         if angular < 0.0:
-            drive.drive.steering_angle = self.max_steering
-        elif angular > 0.0:
             drive.drive.steering_angle = -self.max_steering
+        elif angular > 0.0:
+            drive.drive.steering_angle = self.max_steering
         else:
             drive.drive.steering_angle = 0.0
 

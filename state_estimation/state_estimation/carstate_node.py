@@ -72,7 +72,7 @@ class Carstate(Node):
 
 
     def wait_for_messages(self, frenet_bool: bool = False):
-        self.get_logger().info('Carstate Node waiting for Odometry messages...')
+        self.get_logger().info('Carstate Node waiting for Odometry messages and TF connection...')
         ekf_print = False
         frenet_print = False
         while self.ekf_odom is None or (frenet_bool and self.gb_wpnts is None):
@@ -88,7 +88,19 @@ class Carstate(Node):
                 self.frenet_converter = FrenetConverter(np.array(waypoints_x), np.array(waypoints_y), np.array(waypoints_psi))
                 self.get_logger().info('Received Global Waypoints message and frenet converter initialized!')
                 frenet_print = True
-        self.get_logger().info('All required messages received. Continuing...')
+
+        # Wait for TF connection between 'map' and 'base_link'
+        tf_ready = False
+        tf_print = False
+        while not tf_ready and rclpy.ok():
+            tf_ready = self.tf_buffer.can_transform("map", "base_link", rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=0.5))
+            if not tf_ready:
+                if not tf_print:
+                    self.get_logger().info("Waiting for TF transform between 'map' and 'base_link'...")
+                    tf_print = True
+                rclpy.spin_once(self, timeout_sec=0.1)
+
+        self.get_logger().info('All required messages and TF transforms received. Continuing...')
 
 
     def cartesian_state_loop(self):
