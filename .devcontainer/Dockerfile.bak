@@ -1,4 +1,4 @@
-FROM ros:jazzy-ros-base
+FROM osrf/ros:jazzy-desktop
 ARG USERNAME
 ARG UID
 ARG GID
@@ -7,7 +7,7 @@ ENV SHELL /bin/bash
 
 
 # Create the user
-RUN userdel ubuntu || true
+RUN userdel ubuntu
 RUN groupadd --gid $GID $USERNAME \
     && useradd --uid $UID --gid $GID -m $USERNAME \
     #
@@ -17,7 +17,7 @@ RUN groupadd --gid $GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# Install packages
+Install packages
 RUN apt-get update && apt-get upgrade -y
 
 # install folders are added granularly to avoid unnecessary rebuilds when developing the Dockerfile
