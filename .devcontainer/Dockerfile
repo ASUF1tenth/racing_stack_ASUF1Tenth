@@ -7,17 +7,17 @@ ENV SHELL /bin/bash
 
 
 # Create the user
-# RUN userdel ubuntu || true
-# RUN groupadd --gid $GID $USERNAME \
-#     && useradd --uid $UID --gid $GID -m $USERNAME \
-#     #
-#     # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
-#     && apt-get update \
-#     && apt-get install -y sudo \
-#     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-#     && chmod 0440 /etc/sudoers.d/$USERNAME
+RUN userdel ubuntu || true
+RUN groupadd --gid $GID $USERNAME \
+    && useradd --uid $UID --gid $GID -m $USERNAME \
+    #
+    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# Install packages
+Install packages
 RUN apt-get update && apt-get upgrade -y
 
 # install folders are added granularly to avoid unnecessary rebuilds when developing the Dockerfile
