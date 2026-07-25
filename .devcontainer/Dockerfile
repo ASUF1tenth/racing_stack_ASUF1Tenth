@@ -7,7 +7,7 @@ ENV SHELL /bin/bash
 
 
 # Create the user
-RUN userdel ubuntu || true
+# RUN userdel ubuntu || true
 RUN groupadd --gid $GID $USERNAME \
     && useradd --uid $UID --gid $GID -m $USERNAME \
     #
