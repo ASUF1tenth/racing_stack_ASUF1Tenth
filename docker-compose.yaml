@@ -1,7 +1,6 @@
 version: '3.3'
 services:
   nuc:
-    platform: linux/arm64
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
