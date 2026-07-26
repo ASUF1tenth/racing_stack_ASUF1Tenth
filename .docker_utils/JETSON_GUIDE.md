@@ -103,3 +103,37 @@ To get this distributed container architecture working successfully, keep the fo
 *   **Mitigation:** 
     *   Disable unnecessary GUI services on the Jetson Nano host (`sudo systemctl set-default multi-user.target`).
     *   Create a Swap partition of at least 4GB to prevent Out-Of-Memory (OOM) kernel crashes.
+
+---
+
+## 5. Troubleshooting Runtime Issues
+
+### A. Missing Maps & `KeyError: 'n_sectors'`
+*   **Problem:** Custom maps (like `room_loop` or `glc_ot_ez`) are greyed out in the PC's IDE, and launching them on the Jetson Nano fails with `FileNotFoundError` (for `.png` files), `Failed to load map yaml file` in `map_server`, and `KeyError: 'n_sectors'` in `sector_tuner`.
+*   **Cause:** The workspace [.gitignore](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.gitignore) ignores all subdirectories in `stack_master/maps/` except the default maps (`GLC_smile_small` and `hangar_1905_v0`). Pulling/cloning via Git to the Jetson Nano results in missing map files on the vehicle.
+*   **Resolution:** 
+    1. Update [.gitignore](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.gitignore) to unignore your custom map folders:
+       ```gitignore
+       !stack_master/maps/room_loop
+       !stack_master/maps/glc_ot_ez
+       ```
+    2. Commit and pull the maps to the Jetson.
+    3. Rebuild the master stack on the Jetson so it installs the map assets to the share directory:
+       ```bash
+       cd ~/ws
+       colcon build --packages-select stack_master
+       source install/setup.bash
+       ```
+
+### B. Permission Denied on `lap_analyser` (`PermissionError: [Errno 13]`)
+*   **Problem:** Nodes like `lap_analyser` crash with `PermissionError: [Errno 13] Permission denied: '/home/asuf1tenth/ws/data'`.
+*   **Cause:** Docker mounts host cache/volume directories. If those host directories did not exist, Docker (root daemon) implicitly created the host-bound volume folders (and the parent `/home/asuf1tenth/ws`) as root, blocking the non-root container user (`asuf1tenth`) from writing or creating subdirectories inside it.
+*   **Resolution:** 
+    1. **Pre-create directories:** The [.docker_utils/main_dock.sh](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.docker_utils/main_dock.sh) script now pre-creates directories (build, install, log, data) under your normal host user session *before* spinning up the container.
+    2. **Mount persistent data:** The script now bind-mounts `/home/$USER/ws/data` to the host directory `../cache/jazzy/data`, persisting lap logs permanently.
+    3. **One-Time Cleanup:** If you already have root-owned workspace directories on the Jetson Nano host, correct their permissions once:
+       ```bash
+       sudo chown -R $USER:$USER ~/ws
+       sudo chown -R $USER:$USER ~/Projects/cache
+       ```
+

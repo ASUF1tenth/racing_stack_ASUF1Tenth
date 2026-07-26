@@ -4,6 +4,12 @@
 IMAGE=nuc_forzaeth_racestack_ros2
 FORZETH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Pre-create cache and data directories on host to ensure correct user ownership
+mkdir -p "$FORZETH_DIR/../cache/jazzy/build"
+mkdir -p "$FORZETH_DIR/../cache/jazzy/install"
+mkdir -p "$FORZETH_DIR/../cache/jazzy/log"
+mkdir -p "$FORZETH_DIR/../cache/jazzy/data"
+
 docker run --tty \
     --interactive \
     --network=host \
@@ -16,6 +22,7 @@ docker run --tty \
     --volume $FORZETH_DIR/../cache/jazzy/build:/home/$USER/ws/build \
     --volume $FORZETH_DIR/../cache/jazzy/install:/home/$USER/ws/install \
     --volume $FORZETH_DIR/../cache/jazzy/log:/home/$USER/ws/log \
+    --volume $FORZETH_DIR/../cache/jazzy/data:/home/$USER/ws/data \
     --volume $FORZETH_DIR:/home/$USER/ws/src/race_stack \
     --privileged \
     --name nuc_forzaeth_racestack_ros2_jazzy \
