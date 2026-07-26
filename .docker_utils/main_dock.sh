@@ -4,15 +4,8 @@
 IMAGE=nuc_forzaeth_racestack_ros2
 FORZETH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Detect if NVIDIA container runtime is available on the host
-GPU_FLAGS=""
-if docker info 2>/dev/null | grep -q -E "Runtimes:.*nvidia"; then
-    GPU_FLAGS="--runtime nvidia --env NVIDIA_VISIBLE_DEVICES=all --env NVIDIA_DRIVER_CAPABILITIES=all"
-fi
-
 docker run --tty \
     --interactive \
-    $GPU_FLAGS \
     --network=host \
     --env DISPLAY=$DISPLAY \
     --env USER=$USER \

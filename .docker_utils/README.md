@@ -17,7 +17,7 @@ Setting up a static ip at this moment will allow you to set extra computers (tha
 
 
 ## How to use (docker container)
-**Note**: this following tutorial assumes you are using an x86 platform (e.g. Intel CPU). TODO: arm instructions
+**Note**: this following tutorial assumes you are using an x86 platform (e.g. Intel CPU). For running on the NVIDIA Jetson Nano or other ARM64 platforms, please refer to the [Jetson Nano & ARM64 Docker Guide](./JETSON_GUIDE.md).
 
 **Note 2**: docker is assumed to be installed and runnable without sudo (e.g. on Linux see [Post-Installation steps](https://docs.docker.com/engine/install/linux-postinstall/)).
 
