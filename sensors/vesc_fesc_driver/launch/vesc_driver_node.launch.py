@@ -47,7 +47,7 @@ def launch_setup(context, *args, **kwargs):
 
     node = Node(
         package="vesc_fesc_driver",
-        executable="vesc_driver_node",
+        executable="vesc_fesc_driver_node",
         name=node_name_val,
         namespace=namespace_val,
         parameters=params,
