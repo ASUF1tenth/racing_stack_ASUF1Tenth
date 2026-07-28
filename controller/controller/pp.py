@@ -109,7 +109,7 @@ class PP_Controller:
             acceleration = 0
             jerk = 0
         else:
-            speed = 0
+            speed = 0.0
             jerk = 0
             acceleration = 0                
             self.logger_warn("[Controller] speed was none")
