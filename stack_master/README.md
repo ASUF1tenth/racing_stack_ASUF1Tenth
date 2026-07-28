@@ -35,6 +35,22 @@ ros2 launch stack_master time_trials_launch.xml racecar_version:=<NUCx used> LU_
   - `<Look-Up Table name>` is the name of the Look-Up Table you want to use. It must belong to the list of Look-Up Tables available in the `systm_identification/steering_lookup/cfg` folder.
   - `<control algorithm>` is the control algorithm you want to use. Current possibilities are MAP / PP.
 
+### Speed Scaling / Velocity Tuning
+The velocities generated from the map trajectories can be scaled down or tuned using the `sector_tuner` node parameters.
+
+* **Live Tuning (Dynamic):**
+  Adjust speed scaling on the fly while running:
+  ```shell
+  ros2 param set /sector_tuner global_limit 0.2
+  ros2 param set /sector_tuner Sector0.scaling 0.2
+  ```
+* **Permanent Config:**
+  Modify `src/race_stack/stack_master/maps/<map_name>/speed_scaling.yaml` and rebuild using:
+  ```shell
+  colcon build --packages-select stack_master
+  ```
+  *(Tip: Rebuild with `colcon build --symlink-install` to avoid rebuilding for future YAML changes!)*
+
 ### Head to Head
 ```shell
 ros2 launch stack_master head_to_head_launch.xml racecar_version:=<NUCx used> LU_table:=<Look-Up Table name> ctrl_algo:=<control algorithm> overtake_mode:=spliner
