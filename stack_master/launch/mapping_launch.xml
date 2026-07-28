@@ -1,6 +1,7 @@
 <!-- -*- mode: XML -*- -->
 <launch>
     <arg name="racecar_version" default="NUC2" /> <!-- NUCX -->
+    <arg name="use_legacy_drivers" default="False" description="Whether to use the legacy driver stack (urg_node and standard vesc_driver)" />
     <arg name="map_name" description="Name of the map to be created" />
     <arg name="sim" default="False" />
     <arg name="remote" default="False" description="Whether to run in remote mode (Pi 4 runs vesc and lidar)" />
@@ -32,6 +33,7 @@
                 <arg name="vesc_config" value="$(var vesc_config)" />
                 <arg name="sensors_config" value="$(var sensors_config)" />
                 <arg name="mux_config" value="$(var mux_config)" />
+                <arg name="use_legacy_drivers" value="$(var use_legacy_drivers)" />
             </include>
         </group>
         <group if="$(var remote)">

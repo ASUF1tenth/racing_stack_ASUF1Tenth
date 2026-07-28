@@ -125,3 +125,28 @@ If your code runs on the car NUC/Pi and you connect to it remotely via VS Code S
    export DISPLAY=localhost:10.0  # Use the exact value from step 3
    ```
 5. Run your ROS 2 nodes. The graphics will be forwarded through the SSH tunnel and render on your local laptop screen!
+
+---
+
+## 6. Troubleshooting Known Library Conflicts
+
+### OpenCV GUI vs. Headless Conflict (`xcb` crash)
+If you run GUI nodes (like `global_planner` or `sector_slicer`) and see the following crash:
+```
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "/usr/local/lib/python3.12/dist-packages/cv2/qt/plugins"
+```
+This happens because the standard `opencv-python` library bundles its own pre-compiled Qt binaries which conflict with system-level display interfaces (especially on ARM64 platforms like Nvidia Jetson Developer Kits). 
+
+#### Resolution
+We have configured the environment to use the **headless** version of OpenCV which skips loading these conflicting Qt binaries. Because OpenCV is only used for background mathematical operations (not window rendering) and Matplotlib handles the GUI window rendering using working system backends (like Tkinter), this does not break the planner's popups/sliders.
+
+The configuration has been modified in:
+1. [python_req.txt](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.install_utils/python_req.txt): Replaced `opencv-python` with `opencv-python-headless`.
+2. [Dockerfile](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.devcontainer/Dockerfile): Added a step to explicitly uninstall any pre-existing GUI-bound standard OpenCV libraries (`opencv-python` and `opencv-contrib-python`) before running the pip requirements install.
+
+If you hit this issue in an unbuilt or manually configured environment, run:
+```bash
+pip uninstall -y opencv-python opencv-contrib-python --break-system-packages
+pip install "numpy==1.26.4" "opencv-python-headless<4.11.0" --break-system-packages
+```
+

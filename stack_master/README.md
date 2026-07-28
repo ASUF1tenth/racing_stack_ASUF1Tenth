@@ -4,11 +4,12 @@ Here is the `stack_master`, it is intended to be the main interface between the 
 ### Mapping (on the real car)
 Run the mapping launch file, specifying the map name and the NUCX version:
 ```shell
-ros2 launch stack_master mapping_launch.xml racecar_version:=<NUCX used> map_name:=<map name of choice> [remote:=true/false]
+ros2 launch stack_master mapping_launch.xml racecar_version:=<NUCX used> map_name:=<map name of choice> [remote:=true/false] [use_legacy_drivers:=true/false]
 ```
   - `<map name of choice>` can be any name with no white space. Conventionally we use the location name (eg, 'hangar', 'ETZ', 'icra') followed by the day of the month followed by an incremental version number. For instance, `hangar_12_v0`.
   - `<NUCX>` depends on which car you are using. Parameters are available for NUC2, NUC5, NUC6, SIM (the latter represents a dummy car).
   - `remote` (optional, default `false`): set to `true` if you are using a split-hardware setup where `vesc_driver` and the LiDAR node are running directly on the Raspberry Pi 4, and only the mapping/estimation stack is running on your remote laptop.
+  - `use_legacy_drivers` (optional, default `false`): set to `true` if you want to use the legacy driver stack (Hokuyo `urg_node` and single standard `vesc_driver`) instead of the default `drivers_bringup` (RPLiDAR and dual motor VESC/FESC setup).
 
 After completing a lap, a GUI will popup and pressing the requested button will start the global raceline generation. 
 Then two GUIs will be shown, and within them a slider can be used to select the sectors. 
@@ -18,12 +19,13 @@ A ROS resourcing will be needed from here on.
 
 ### Base System
 ```shell
-ros2 launch stack_master base_system_launch.xml map_name:=<name of mapped track> sim:=<true/false> racecar_version:=<NUCX used> [remote:=true/false]
+ros2 launch stack_master base_system_launch.xml map_name:=<name of mapped track> sim:=<true/false> racecar_version:=<NUCX used> [remote:=true/false] [use_legacy_drivers:=true/false]
 ```
   - `<name of mapped track>` is the name of the track you want to run on. It must belong to the list of maps available in the `stack_master/maps` folder.
   - `<true/false>` is a boolean value that indicates if you want to run the simulation or the real car. 
   - `<NUCX>` depends on which car you are using. Parameters are available for NUC2, NUC5, NUC6, SIM (the latter represents a dummy car).
   - `remote` (optional, default `false`): set to `true` if you are using a split-hardware setup where VESC and LiDAR nodes are launched directly on the Pi, and only the control/localization nodes are run on the remote laptop.
+  - `use_legacy_drivers` (optional, default `false`): set to `true` if you want to use the legacy driver stack (Hokuyo `urg_node` and single standard `vesc_driver`) instead of the default `drivers_bringup` (RPLiDAR and dual motor VESC/FESC setup).
 
 ### Time trials 
 ```shell

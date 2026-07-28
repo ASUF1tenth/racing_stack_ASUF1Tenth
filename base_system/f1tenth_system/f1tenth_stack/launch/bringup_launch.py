@@ -27,6 +27,8 @@ from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.conditions import IfCondition, UnlessCondition
 from ament_index_python.packages import get_package_share_directory
 import os
 
@@ -69,8 +71,12 @@ def generate_launch_description():
         'mux_config',
         default_value=mux_config,
         description='Descriptions for ackermann mux configs')
+    use_legacy_drivers_la = DeclareLaunchArgument(
+        'use_legacy_drivers',
+        default_value='False',
+        description='Whether to use the legacy drivers (urg_node and standard vesc_driver)')
 
-    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
+    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la, use_legacy_drivers_la])
 
     joy_node = Node(
         package='joy',
@@ -100,7 +106,8 @@ def generate_launch_description():
         package='vesc_driver',
         executable='vesc_driver_node',
         name='vesc_driver_node',
-        parameters=[LaunchConfiguration('vesc_config')]
+        parameters=[LaunchConfiguration('vesc_config')],
+        condition=IfCondition(LaunchConfiguration('use_legacy_drivers'))
     )
     throttle_interpolator_node = Node(
         package='f1tenth_stack',
@@ -112,7 +119,21 @@ def generate_launch_description():
         package='urg_node',
         executable='urg_node_driver',
         name='urg_node',
-        parameters=[LaunchConfiguration('sensors_config')]
+        parameters=[LaunchConfiguration('sensors_config')],
+        condition=IfCondition(LaunchConfiguration('use_legacy_drivers'))
+    )
+    drivers_bringup_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('drivers_bringup'),
+                'launch',
+                'drivers_bringup.launch.py'
+            )
+        ),
+        launch_arguments={
+            'vesc_config': LaunchConfiguration('vesc_config')
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_legacy_drivers'))
     )
     ackermann_mux_node = Node(
         package='ackermann_mux',
@@ -150,6 +171,7 @@ def generate_launch_description():
     ld.add_action(vesc_driver_node)
     # ld.add_action(throttle_interpolator_node)
     ld.add_action(urg_node)
+    ld.add_action(drivers_bringup_include)
     ld.add_action(ackermann_mux_node)
     ld.add_action(static_tf_node_bl)
     ld.add_action(static_tf_node_mo)

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drivers_bringup</name>
+  <version>0.0.1</version>
+  <description>Bringup launch files for F1TENTH low-level hardware drivers (VESC/FESC and SLLiDAR A1)</description>
+  <maintainer email="mohany@todo.todo">Mohan</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>vesc_driver</exec_depend>
+  <exec_depend>sllidar_ros2</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
