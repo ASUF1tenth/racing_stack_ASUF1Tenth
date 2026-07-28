@@ -339,13 +339,23 @@ class Detect(Node):
         T = from_vector3_msg(t.transform.translation)
         R = from_quat_msg(t.transform.rotation)
 
+        ranges = np.array(scans.ranges)
         angles = np.linspace(scans.angle_min,
                              scans.angle_max, len(scans.ranges))
-        x_laser_frame = (scans.ranges * np.cos(angles)).flatten()
-        y_laser_frame = (scans.ranges * np.sin(angles)).flatten()
-        z_laser_frame = np.zeros(len(scans.ranges))
+        
+        # Filter valid measurements (not NaN, not Inf, and within range limits)
+        valid_mask = np.isfinite(ranges) & (ranges >= scans.range_min) & (ranges <= scans.range_max)
+        ranges = ranges[valid_mask]
+        angles = angles[valid_mask]
+        
+        if len(ranges) == 0:
+            return []
+
+        x_laser_frame = (ranges * np.cos(angles)).flatten()
+        y_laser_frame = (ranges * np.sin(angles)).flatten()
+        z_laser_frame = np.zeros(len(ranges))
         # 4xN matrix
-        xyz_laser_frame = np.vstack((x_laser_frame, y_laser_frame, z_laser_frame, np.ones(len(scans.ranges))))
+        xyz_laser_frame = np.vstack((x_laser_frame, y_laser_frame, z_laser_frame, np.ones(len(ranges))))
 
         H_l2m = np.eye(4)
         H_l2m[:3, -1] = T
@@ -367,7 +377,7 @@ class Detect(Node):
 
         div_const = np.sin(d_phi) / np.sin(l - d_phi)
         for i in range(1, len(cloudPoints_list)):
-            curr_range = self.scans.ranges[i]
+            curr_range = ranges[i]
             d_max = curr_range * div_const + 3 * sigma
 
             # Distance between points does not change in map frame or laser frame.
