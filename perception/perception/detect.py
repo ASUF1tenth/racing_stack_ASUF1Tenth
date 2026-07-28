@@ -657,12 +657,19 @@ class Detect(Node):
         self.current_stamp = self.get_clock().now().to_msg()
         try:
             transform = self.tf_buffer.lookup_transform(target_frame='map', 
-                                                        source_frame=self.scans.header.frame_id, 
-                                                        time=self.scans.header.stamp, 
-                                                        timeout=rclpy.duration.Duration(seconds=0.03))
+                                                         source_frame=self.scans.header.frame_id, 
+                                                         time=self.scans.header.stamp, 
+                                                         timeout=rclpy.duration.Duration(seconds=0.03))
         except Exception as e:
-            self.get_logger().warn(f"Could not transform between 'map' and '{scans.header.frame_id}': {e}")
-            transform = None
+            try:
+                # Fallback to the latest available transform if lookup at scan timestamp fails
+                transform = self.tf_buffer.lookup_transform(target_frame='map', 
+                                                             source_frame=self.scans.header.frame_id, 
+                                                             time=rclpy.time.Time(), 
+                                                             timeout=rclpy.duration.Duration(seconds=0.01))
+            except Exception as e2:
+                self.get_logger().warn(f"Could not transform between 'map' and '{scans.header.frame_id}' (tried scan time and latest): {e2}")
+                transform = None
 
         objects_pointcloud_list = self.scans2ObsPointCloud(scans=scans, car_s=car_s, t=transform)
         current_obstacles = self.obsPointClouds2obsArray(objects_pointcloud_list)
