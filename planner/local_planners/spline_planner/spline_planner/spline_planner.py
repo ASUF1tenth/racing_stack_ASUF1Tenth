@@ -16,6 +16,7 @@ from typing import List, Any, Tuple
 from scipy.interpolate import InterpolatedUnivariateSpline as Spline
 from frenet_conversion.frenet_converter import FrenetConverter
 
+
 class ObstacleSpliner(Node):
     """
     This class implements a ROS node that performs splining around obstacles.
@@ -90,12 +91,12 @@ class ObstacleSpliner(Node):
         self.post_apex_0 = 2.0
         self.post_apex_1 = 3.0
         self.post_apex_2 = 4.0
-        self.evasion_dist = 0.65
+        self.evasion_dist = 0.1
         self.obs_traj_tresh = 0.3
-        self.spline_bound_mindist = 0.2
+        self.spline_bound_mindist = 0.1
         self.fixed_pred_time = 0.15
         self.kd_obs_pred = 1.0
-        
+
         pd = ParameterDescriptor(
             type=ParameterType.PARAMETER_DOUBLE,
             floating_point_range=[FloatingPointRange(from_value=0.1, to_value=8.0, step=0.001)]
@@ -127,7 +128,7 @@ class ObstacleSpliner(Node):
         self.converter = self.initialize_converter()
 
         # Create timer
-        self.create_timer(1/20, self.spliner_loop)
+        self.create_timer(1 / 20, self.spliner_loop)
 
     #################### DYNAMIC PARAMS####################
     def declare_all_parameters(self, param_dicts: List[dict]):
@@ -166,7 +167,7 @@ class ObstacleSpliner(Node):
                 self.fixed_pred_time = param.value
             elif param_name == 'kd_obs_pred':
                 self.kd_obs_pred = param.value
-        
+
         # Ensure ascending order for spline parameters
         if self.pre_apex_1 < self.pre_apex_0:
             self.get_logger().info("Adjusting pre_apex_1 to ensure ascending order.")
@@ -187,7 +188,7 @@ class ObstacleSpliner(Node):
         if self.post_apex_2 < self.post_apex_1:
             self.get_logger().info("Adjusting post_apex_2 to ensure ascending order.")
             self.post_apex_2 = self.post_apex_1
-        
+
         spline_params = [
             self.pre_apex_0,
             self.pre_apex_1,
@@ -197,13 +198,13 @@ class ObstacleSpliner(Node):
             self.post_apex_1,
             self.post_apex_2,
         ]
-        
+
         self.get_logger().info(
-            f" Dynamic reconf triggered new spline params: {spline_params} [m],\n"
-            f" evasion apex distance: {self.evasion_dist} [m],\n"
-            f" obstacle trajectory treshold: {self.obs_traj_tresh} [m]\n"
-            f" obstacle prediciton k_d: {self.kd_obs_pred},    obstacle prediciton constant time: {self.fixed_pred_time} [s] "
-        )
+            f" Dynamic reconf triggered new spline params: {spline_params} [m],\n" f" evasion apex distance: {
+                self.evasion_dist} [m],\n" f" obstacle trajectory treshold: {
+                self.obs_traj_tresh} [m]\n" f" obstacle prediciton k_d: {
+                self.kd_obs_pred},    obstacle prediciton constant time: {
+                    self.fixed_pred_time} [s] ")
         return SetParametersResult(successful=True)
 
     #################### CALLBACKS####################
@@ -264,7 +265,7 @@ class ObstacleSpliner(Node):
         """
         Predicts the movement of an obstacle based on the current state and mode.
 
-        TODO: opponent prediction should be completely isolated for added modularity       
+        TODO: opponent prediction should be completely isolated for added modularity
 
         Args:
             obs (Obstacle): The obstacle to predict the movement for.
@@ -352,7 +353,8 @@ class ObstacleSpliner(Node):
         if right_gap > min_space and left_gap < min_space:
             # Compute apex distance to the right of the opponent
             d_apex_right = obstacle.d_right - self.evasion_dist
-            # If we overtake to the right of the opponent BUT the apex is to the left of the raceline, then we set the apex to 0
+            # If we overtake to the right of the opponent BUT the apex is to the left
+            # of the raceline, then we set the apex to 0
             if d_apex_right > 0:
                 d_apex_right = 0
             return "right", d_apex_right
@@ -360,7 +362,8 @@ class ObstacleSpliner(Node):
         elif left_gap > min_space and right_gap < min_space:
             # Compute apex distance to the left of the opponent
             d_apex_left = obstacle.d_left + self.evasion_dist
-            # If we overtake to the left of the opponent BUT the apex is to the right of the raceline, then we set the apex to 0
+            # If we overtake to the left of the opponent BUT the apex is to the right
+            # of the raceline, then we set the apex to 0
             if d_apex_left < 0:
                 d_apex_left = 0
             return "left", d_apex_left
@@ -369,12 +372,14 @@ class ObstacleSpliner(Node):
             candidate_d_apex_right = obstacle.d_right - self.evasion_dist
 
             if abs(candidate_d_apex_left) <= abs(candidate_d_apex_right):
-                # If we overtake to the left of the opponent BUT the apex is to the right of the raceline, then we set the apex to 0
+                # If we overtake to the left of the opponent BUT the apex is to the right
+                # of the raceline, then we set the apex to 0
                 if candidate_d_apex_left < 0:
                     candidate_d_apex_left = 0
                 return "left", candidate_d_apex_left
             else:
-                # If we overtake to the right of the opponent BUT the apex is to the left of the raceline, then we set the apex to 0
+                # If we overtake to the right of the opponent BUT the apex is to the left
+                # of the raceline, then we set the apex to 0
                 if candidate_d_apex_right > 0:
                     candidate_d_apex_right = 0
                 return "right", candidate_d_apex_right
@@ -438,7 +443,8 @@ class ObstacleSpliner(Node):
         # Only use obstacles that are within a threshold of the raceline, else we don't care about them
         close_obs = self._obs_filtering(obstacles=obstacles)
 
-        # If there are obstacles within the lookahead distance, then we need to generate an evasion trajectory considering the closest one
+        # If there are obstacles within the lookahead distance, then we need to
+        # generate an evasion trajectory considering the closest one
         if len(close_obs) > 0:
             # Get the closest obstacle handling wraparound
             closest_obs = min(
@@ -452,7 +458,8 @@ class ObstacleSpliner(Node):
                           closest_obs.s_start) / 2
             else:
                 s_apex = (closest_obs.s_end + closest_obs.s_start) / 2
-            # Approximate next 20 indexes of global wpnts with wrapping => 2m and compute which side is the outside of the raceline
+            # Approximate next 20 indexes of global wpnts with wrapping => 2m and
+            # compute which side is the outside of the raceline
             gb_idxs = [int(s_apex / wpnt_dist + i) %
                        self.gb_max_idx for i in range(20)]
             kappas = np.array(
