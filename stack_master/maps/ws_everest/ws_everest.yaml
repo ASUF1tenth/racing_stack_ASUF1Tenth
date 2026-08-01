@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: ws_everest.png
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -12.791928863525392
+- -2.1
+- 0
+resolution: 0.05000000074505806
