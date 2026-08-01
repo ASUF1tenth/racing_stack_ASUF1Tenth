@@ -11,6 +11,12 @@ ros2 launch stack_master mapping_launch.xml racecar_version:=<NUCX used> map_nam
   - `remote` (optional, default `false`): set to `true` if you are using a split-hardware setup where `vesc_driver` and the LiDAR node are running directly on the Raspberry Pi 4, and only the mapping/estimation stack is running on your remote laptop.
   - `use_legacy_drivers` (optional, default `false`): set to `true` if you want to use the legacy driver stack (Hokuyo `urg_node` and single standard `vesc_driver`) instead of the default `drivers_bringup` (RPLiDAR and dual motor VESC/FESC setup).
 
+> [!IMPORTANT]
+> **Mapping Best Practices & Initial Pose Alignment:**
+> * **Mapping Start Position:** Cartographer sets the $(0, 0, 0)$ map origin at the location where `mapping_launch.xml` is first started. Take note of where the car was placed when starting the mapping run.
+> * **Localization Startup:** When launching `base_system_launch.xml`, Cartographer will place the initial pose of the car at $(0, 0, 0)$ (the mapping start position). Always place the physical car near the mapping start line or use RViz **2D Pose Estimate** to set the initial pose before driving.
+> * **Large Map Safeguard:** Driving an unlocalized car on large maps (>200m) causes Cartographer to perform an unconstrained global search, which can throw `std::length_error: cannot create std::vector larger than max_size()`. Setting `POSE_GRAPH.constraint_builder.max_constraint_distance = 15.0` in your car's `slam/f110_2d_loc.lua` prevents this memory allocation crash.
+
 After completing a lap, a GUI will popup and pressing the requested button will start the global raceline generation. 
 Then two GUIs will be shown, and within them a slider can be used to select the sectors. 
 Be careful as once a sector is chosen it cannot be further subdivided. 
@@ -26,6 +32,7 @@ ros2 launch stack_master base_system_launch.xml map_name:=<name of mapped track>
   - `<NUCX>` depends on which car you are using. Parameters are available for NUC2, NUC5, NUC6, SIM (the latter represents a dummy car).
   - `remote` (optional, default `false`): set to `true` if you are using a split-hardware setup where VESC and LiDAR nodes are launched directly on the Pi, and only the control/localization nodes are run on the remote laptop.
   - `use_legacy_drivers` (optional, default `false`): set to `true` if you want to use the legacy driver stack (Hokuyo `urg_node` and single standard `vesc_driver`) instead of the default `drivers_bringup` (RPLiDAR and dual motor VESC/FESC setup).
+
 
 ### Time trials 
 ```shell

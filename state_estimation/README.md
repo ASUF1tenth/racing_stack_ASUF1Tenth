@@ -91,7 +91,16 @@ These weight the probability of a hit or miss in the occupancy grid.
 
 If we don't trust the lidar (eg. black tubes), we should reduce the miss probability (free space may mean undetected things).
 
+### Large Map Localization & Constraint Search
+When running Cartographer on large tracks (>200 meters), driving while unlocalized triggers a map-wide constraint search (`MatchFullSubmap`). Evaluating millions of search candidates across the whole map grid can cause a C++ memory allocation crash:
+`std::length_error: cannot create std::vector larger than max_size()`
+
+To prevent this:
+1. **Initial Pose Alignment:** Always place the car near the mapping start line $(0,0,0)$ or use **2D Pose Estimate** in RViz to localize before driving.
+2. **Cap Constraint Distance:** Set `POSE_GRAPH.constraint_builder.max_constraint_distance = 15.0` in `f110_2d_loc.lua` to bound the search radius.
+
 ## TF Tree Readiness & Localization Robustness
+
 
 ### Implemented Fixes
 * **Startup TF Synchronization in `carstate_node`**:
