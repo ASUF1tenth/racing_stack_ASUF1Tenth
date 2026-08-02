@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: my_room_map_2.png
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -10.426156616210939
+- -9.15
+- 0
+resolution: 0.05000000074505806

@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: workspace.png
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -17.2
+- -2.15
+- 0
+resolution: 0.05000000074505806
