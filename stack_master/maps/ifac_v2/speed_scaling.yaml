@@ -1,6 +1,6 @@
 sector_tuner:
   ros__parameters:
-    global_limit: 0.5
+    global_limit: 0.2
     n_sectors: 1
     Sector0:
       start: 0
