@@ -41,7 +41,6 @@
 .vscode
 
 #maps
-stack_master/maps/*
 !stack_master/maps/GLC_smile_small
 stack_master/maps/GLC_smile_small/speed_scaling.yaml
 stack_master/maps/GLC_smile_small/ot_sectors.yaml
