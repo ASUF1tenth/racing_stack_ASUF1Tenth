@@ -42,9 +42,9 @@ TRAJECTORY_BUILDER_2D.min_range = 0.15
 TRAJECTORY_BUILDER_2D.submaps.num_range_data = 100
 POSE_GRAPH.optimize_every_n_nodes = 20
 
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 0.2 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 0.4 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight
 
-TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 0.2 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 0.4 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight
 
 POSE_GRAPH.optimization_problem.odometry_rotation_weight = 0
 POSE_GRAPH.optimization_problem.odometry_translation_weight = 0
