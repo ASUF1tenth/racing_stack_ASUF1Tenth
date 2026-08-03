@@ -10,7 +10,7 @@ controller:
     # dec_scaler_for_steer_safe: 1.0
     # acc_scaler_for_steer_aggressive: 1.1
     acc_scaler_for_steer: 1.0
-    dec_scaler_for_steer: 0.0
+    dec_scaler_for_steer: 1.0
 
     start_scale_speed: 7.0
     end_scale_speed: 8.0
