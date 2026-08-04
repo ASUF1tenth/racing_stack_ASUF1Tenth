@@ -17,7 +17,7 @@ controller:
     downscale_factor: 0.0
     # increasing this to 0.20 AT MOST can make the car faster on the laptime but cut more corners
 
-    speed_lookahead_for_steer: 0.17 # safe/agg 0.0/0.175
+    speed_lookahead_for_steer: 0.19 # safe/agg 0.0/0.175
 
     ## Acceleration Based Velocity Controller Parameters
     vel_accel_mode: False
