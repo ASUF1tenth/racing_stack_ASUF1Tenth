@@ -1,9 +1,9 @@
 controller:
   ros__parameters:
     t_clip_min: 0.85
-    t_clip_max: 1.0
-    m_l1: 0.1
-    q_l1: 0.85
+    t_clip_max: 2.2
+    m_l1: 2.18
+    q_l1: -0.5
     speed_lookahead: 0.0
     lat_err_coeff: 1.0
     # acc_scaler_for_steer_safe: 1.0
@@ -17,7 +17,7 @@ controller:
     downscale_factor: 0.0
     # increasing this to 0.20 AT MOST can make the car faster on the laptime but cut more corners
 
-    speed_lookahead_for_steer: 0.19 # safe/agg 0.0/0.175
+    speed_lookahead_for_steer: 0.2 # safe/agg 0.0/0.175
 
     ## Acceleration Based Velocity Controller Parameters
     vel_accel_mode: False
