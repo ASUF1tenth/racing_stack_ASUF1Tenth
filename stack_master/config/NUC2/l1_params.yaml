@@ -1,9 +1,9 @@
 controller:
   ros__parameters:
     t_clip_min: 0.85
-    t_clip_max: 2.2
-    m_l1: 2.18
-    q_l1: -0.5
+    t_clip_max: 1.7
+    m_l1: 0.1
+    q_l1: 0.85
     speed_lookahead: 0.0
     lat_err_coeff: 1.0
     # acc_scaler_for_steer_safe: 1.0
