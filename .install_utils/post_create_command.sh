@@ -27,5 +27,5 @@ cd ~/ws &&
     colcon build --symlink-install --packages-select autodrive_roboracer
 
 # setup autodrive_forzaeth_bridge
-cd ~/ws &&
-    colcon build --symlink-install --packages-select autodrive_forzaeth_bridge
+# cd ~/ws &&
+    # colcon build --symlink-install --packages-select autodrive_forzaeth_bridge
