@@ -24,4 +24,5 @@
         120
     ],
     "editor.renderWhitespace": "trailing",
+    "ROS2.distro": "jazzy",
 }

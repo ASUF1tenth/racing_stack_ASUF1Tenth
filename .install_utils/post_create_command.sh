@@ -21,3 +21,11 @@ cd ~/ws &&
     colcon build --packages-up-to f110_gym --base-paths ~/ws \
         --cmake-args "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_EXPORT_COMPILE_COMMANDS=On" \
         -Wall -Wextra -Wpedantic --cmake-clean-cache
+
+# setup autodrive_roboracer
+cd ~/ws &&
+    colcon build --symlink-install --packages-select autodrive_roboracer
+
+# setup autodrive_forzaeth_bridge
+cd ~/ws &&
+    colcon build --symlink-install --packages-select autodrive_forzaeth_bridge
