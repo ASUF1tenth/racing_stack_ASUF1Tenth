@@ -20,4 +20,4 @@
 	branch = foxy
 [submodule "autodrive_devkit"]
 	path = autodrive_devkit
-	url = https://github.com/AutoDRIVE-Ecosystem/AutoDRIVE-RoboRacer-Sim-Racing.git
+	url = https://github.com/ASUF1Tenth/AutoDRIVE-RoboRacer-Sim-Racing.git
