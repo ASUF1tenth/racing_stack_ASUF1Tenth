@@ -31,7 +31,8 @@
         "DISPLAY": "${localEnv:DISPLAY}",
         "XAUTHORITY": "/tmp/.Xauthority",
         "ROS_LOCALHOST_ONLY": "0",
-        "ROS_DOMAIN_ID": "6",
+        // "ROS_DOMAIN_ID": "6",
+        "ROS_DOMAIN_ID": "48",
         "USERNAME": "${localEnv:USER}",
         "RCUTILS_COLORIZED_OUTPUT": "1"
     },
