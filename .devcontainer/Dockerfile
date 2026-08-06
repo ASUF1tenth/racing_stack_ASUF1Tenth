@@ -30,10 +30,11 @@ ADD .install_utils/python_req.txt /tmp/.install_utils/python_req.txt
 RUN pip3 install -r /tmp/.install_utils/python_req.txt --break-system-packages &&\
     pip3 install quadprog~=0.1.11 --break-system-packages
 RUN pip3 install --break-system-packages \
-        gevent \
-        gevent-websocket \
-        python-socketio \
-        attrdict
+    gevent \
+    gevent-websocket \
+    python-socketio \
+    attrdict \
+    imu-jazzy
 # flag desktop-full package as manually installed (otherwise apt suggests to uninstall it)
 RUN apt-get install -y ros-jazzy-desktop
 

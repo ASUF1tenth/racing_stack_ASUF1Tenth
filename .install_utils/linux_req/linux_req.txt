@@ -21,5 +21,10 @@ ros-jazzy-xacro
 ros-jazzy-asio-cmake-module
 ros-jazzy-nav2-map-server
 ros-jazzy-nav2-lifecycle-manager
+
+# DevKit
 ros-jazzy-cv-bridge
 ros-jazzy-image-transport
+ros-jazzy-imu-tools
+ros-jazzy-rviz2
+ros-jazzy-rqt-graph

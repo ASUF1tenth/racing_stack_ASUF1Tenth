@@ -22,10 +22,7 @@ cd ~/ws &&
         --cmake-args "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_EXPORT_COMPILE_COMMANDS=On" \
         -Wall -Wextra -Wpedantic --cmake-clean-cache
 
-# setup autodrive_roboracer
+# setup autodrive_roboracer (from the devkit submodule under race_stack)
 cd ~/ws &&
-    colcon build --symlink-install --packages-select autodrive_roboracer
-
-# setup autodrive_forzaeth_bridge
-# cd ~/ws &&
-    # colcon build --symlink-install --packages-select autodrive_forzaeth_bridge
+    colcon build --symlink-install \
+        --base-paths ~/ws/src/race_stack/autodrive_devkit/autodrive_devkit

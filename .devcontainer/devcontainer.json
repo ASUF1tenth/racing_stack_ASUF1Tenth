@@ -48,8 +48,7 @@
         "source=/dev,target=/dev,type=bind,consistency=cached",
         "source=${localWorkspaceFolder}/../cache/jazzy/build,target=/home/${localEnv:USER}/ws/build,type=bind",
         "source=${localWorkspaceFolder}/../cache/jazzy/install,target=/home/${localEnv:USER}/ws/install,type=bind",
-        "source=${localWorkspaceFolder}/../cache/jazzy/log,target=/home/${localEnv:USER}/ws/log,type=bind",
-        "source=${localWorkspaceFolder}/../AutoDRIVE-RoboRacer-Sim-Racing/autodrive_devkit,target=/home/${localEnv:USER}/ws/src/autodrive_roboracer,type=bind,consistency=cached"
+        "source=${localWorkspaceFolder}/../cache/jazzy/log,target=/home/${localEnv:USER}/ws/log,type=bind"
     ],
     "postCreateCommand": "~/ws/src/race_stack/.install_utils/post_create_command.sh"
 }

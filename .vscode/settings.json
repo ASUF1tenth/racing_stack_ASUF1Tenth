@@ -24,5 +24,7 @@
         120
     ],
     "editor.renderWhitespace": "trailing",
+    "ros.distro": "jazzy",
+    "cmake.ignoreCMakeListsMissing": true,
     "ROS2.distro": "jazzy",
 }
