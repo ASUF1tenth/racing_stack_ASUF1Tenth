@@ -54,8 +54,10 @@ ros2 topic list
 **Expected Output**: The following topics must appear in the list:
 * `/scan`
 * `/odom`
+* `/vesc/odom`
 * `/sensors/imu/raw`
 * `/vesc/sensors/imu/raw`
+* `/sensors/imu` (when `vesc_msgs` is installed)
 
 ### 2c. Verify LiDAR Forwarding
 Echo a single scan message:
@@ -66,25 +68,27 @@ ros2 topic echo /scan --once
 * `header.frame_id` must be exactly `"laser"`.
 * The `ranges` list must contain active measurements (not all zeros or empty).
 
-### 2d. Verify Odometry Forwarding
-Echo a single odometry message:
+### 2d. Verify Dual-Topic Kinematic Odometry (`/odom` & `/vesc/odom`)
+Echo single odometry messages from both topics:
 ```bash
 ros2 topic echo /odom --once
+ros2 topic echo /vesc/odom --once
 ```
 **Expected Validation**:
+* Both `/odom` and `/vesc/odom` must publish identical data.
 * `header.frame_id` must be exactly `"odom"`.
 * `child_frame_id` must be exactly `"base_link"`.
-* Velocity and position states must update dynamically when the vehicle moves in the simulator.
+* Position $(x, y)$ and orientation yaw must update via Ackermann kinematics ($\omega_z = \frac{v}{L} \tan(\delta)$).
 
-### 2e. Verify Dual-Topic IMU Forwarding
-Echo single messages from both EKF and Controller IMU topics:
+### 2e. Verify Triple-Topic IMU Forwarding (`/sensors/imu/raw`, `/vesc/sensors/imu/raw`, `/sensors/imu`)
+Echo single messages from standard and VESC IMU topics:
 ```bash
 ros2 topic echo /sensors/imu/raw --once
-ros2 topic echo /vesc/sensors/imu/raw --once
+ros2 topic echo /sensors/imu --once
 ```
 **Expected Validation**:
-* Both topics must publish identical sensor data.
-* `header.frame_id` in both messages must be exactly `"imu"`.
+* `/sensors/imu/raw` and `/vesc/sensors/imu/raw` publish `sensor_msgs/msg/Imu` with `header.frame_id = "imu"`.
+* `/sensors/imu` publishes `vesc_msgs/msg/VescImuStamped` with populated Roll/Pitch/Yaw (`ypr.x`, `ypr.y`, `ypr.z`) angles in radians.
 
 ---
 

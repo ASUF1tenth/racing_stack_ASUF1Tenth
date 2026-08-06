@@ -4,6 +4,7 @@
   <arg name="use_legacy_drivers" default="False" description="Whether to use the legacy driver stack (urg_node and standard vesc_driver)" />
   <arg name="map_name" description="Map name in stack_master/maps" />
   <arg name="sim" default="False" description="True/False if you want to run simulation" />
+  <arg name="sim_type" default="autodrive" description="Simulator backend: 'autodrive' / 'gym'" />
   <arg name="loc_algorithm" default="slam" description="'slam' / 'synpf' to switch localisation algorithm" />
   <arg name="remote" default="False" description="Whether to run in remote mode (Pi 4 runs vesc and lidar)" />
 
@@ -18,17 +19,29 @@
     is not expected to modify maps in any way. -->
   <let name="map_path" value="$(find-pkg-share stack_master)/maps/$(var map_name)" />
 
-  <!-- launch simulator -->
-  <group if="$(var sim)">
+  <!-- 1. Launch 2D Gym simulator -->
+  <group if="$(eval '\'$(var sim)\' == \'True\' and \'$(var sim_type)\' == \'gym\'')">
     <include file="$(find-pkg-share f1tenth_gym_ros)/launch/gym_bridge_launch.py">
       <arg name="map_yaml_path" value="$(var map_path)/$(var map_name).yaml" />
     </include>
-    <!-- only needed in sim -->
+    <!-- only needed in gym sim -->
     <include
       file="$(find-pkg-share frenet_odom_republisher)/launch/frenet_odom_republisher_launch.xml" />
   </group>
 
-  <!-- launch real car system -->
+  <!-- 2. Launch AutoDRIVE simulator adapter & state estimation -->
+  <group if="$(eval '\'$(var sim)\' == \'True\' and \'$(var sim_type)\' == \'autodrive\'')">
+    <include file="$(find-pkg-share f110_autodrive)/launch/autodrive_launch.xml" />
+    <!-- launch SE -->
+    <include file="$(find-pkg-share state_estimation)/launch/state_estimation_launch.xml">
+      <arg name="racecar_version" value="$(var racecar_version)" />
+      <arg name="mapping_bool" value="False" />
+      <arg name="map_name" value="$(var map_name)" />
+      <arg name="frenet_bool" value="True" />
+    </include>
+  </group>
+
+  <!-- 3. Launch real car system -->
   <group unless="$(var sim)">
     <!-- launch teleop -->
     <group unless="$(var remote)">
@@ -72,7 +85,6 @@
   <node pkg="global_planner" name="global_republisher" exec="global_trajectory_publisher">
     <param name="map_path" value="$(var map_path)" />
   </node>
-
 
   <!-- launch sector tuner -->
   <node pkg="sector_tuner" name="sector_tuner" exec="sector_tuner">

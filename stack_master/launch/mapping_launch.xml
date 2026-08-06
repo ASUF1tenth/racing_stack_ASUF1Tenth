@@ -4,6 +4,7 @@
     <arg name="use_legacy_drivers" default="False" description="Whether to use the legacy driver stack (urg_node and standard vesc_driver)" />
     <arg name="map_name" description="Name of the map to be created" />
     <arg name="sim" default="False" />
+    <arg name="sim_type" default="autodrive" description="Simulator backend: 'autodrive' / 'gym'" />
     <arg name="remote" default="False" description="Whether to run in remote mode (Pi 4 runs vesc and lidar)" />
     <let name="sensors_config" value="$(find-pkg-share stack_master)/config/sensors.yaml" />
     <let name="mux_config" value="$(find-pkg-share stack_master)/config/mux.yaml" />
@@ -16,7 +17,7 @@
     <let name="map_src_path"
         value="$(find-pkg-prefix stack_master)/../../src/race_stack/stack_master/maps/$(var map_name)" />
 
-    <!-- ON PHYSICAL SYSTEM -->
+    <!-- 1. ON PHYSICAL SYSTEM -->
     <group unless="$(var sim)">
         <node pkg="global_planner" exec="global_planner" name="global_planner" output="screen">
             <param
@@ -52,17 +53,32 @@
             <arg name="map_name" value="$(var map_name)" />
             <arg name="frenet_bool" value="False" />
         </include>
-
-        <!-- Launch FTG for Mapping -->
-        <!-- <node pkg="controller" type="ftg.py" name="mapping_ftg_node" output="screen">
-            <param name="/ftg/max_speed" value="$(arg ftg_max_speed)"/>
-            <param name="/ftg/track_width" value="$(arg ftg_track_width)"/>
-            <param name="mapping" value="True" />
-        </node> -->
     </group>
 
-    <!-- ON SIM -->
-    <group if="$(var sim)">
+    <!-- 2. ON AutoDRIVE SIMULATION -->
+    <group if="$(eval '\'$(var sim)\' == \'True\' and \'$(var sim_type)\' == \'autodrive\'')">
+        <node pkg="global_planner" exec="global_planner" name="global_planner" output="screen">
+            <param
+                from="$(find-pkg-share stack_master)/config/global_planner/global_planner_params.yaml" />
+            <param name="map_editor" value="False" />
+            <param name="create_map" value="True" />
+            <param name="map_name" value="$(var map_name)" />
+        </node>
+
+        <!-- Launch AutoDRIVE adapter node -->
+        <include file="$(find-pkg-share f110_autodrive)/launch/autodrive_launch.xml" />
+
+        <!-- Launch SLAM Cartographer State Estimation for mapping -->
+        <include file="$(find-pkg-share state_estimation)/launch/state_estimation_launch.xml">
+            <arg name="racecar_version" value="$(var racecar_version)" />
+            <arg name="mapping_bool" value="True" />
+            <arg name="map_name" value="$(var map_name)" />
+            <arg name="frenet_bool" value="False" />
+        </include>
+    </group>
+
+    <!-- 3. ON 2D GYM SIMULATION -->
+    <group if="$(eval '\'$(var sim)\' == \'True\' and \'$(var sim_type)\' == \'gym\'')">
         <node pkg="global_planner" exec="global_planner" name="global_planner" output="screen">
             <param
                 from="$(find-pkg-share stack_master)/config/global_planner/global_planner_params.yaml" />

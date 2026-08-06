@@ -1,11 +1,54 @@
 #!/usr/bin/env python3
+import math
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan, Imu
 from nav_msgs.msg import Odometry
 from ackermann_msgs.msg import AckermannDriveStamped
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Quaternion
 from std_msgs.msg import Float32
+
+try:
+    from vesc_msgs.msg import VescImuStamped
+    HAS_VESC_MSGS = True
+except ImportError:
+    HAS_VESC_MSGS = False
+
+
+def euler_from_quaternion(q):
+    """Convert a quaternion (x, y, z, w) into Euler angles (roll, pitch, yaw)."""
+    x, y, z, w = q.x, q.y, q.z, q.w
+    sinr_cosp = 2.0 * (w * x + y * z)
+    cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2.0 * (w * y - z * x)
+    if abs(sinp) >= 1.0:
+        pitch = math.copysign(math.pi / 2.0, sinp)
+    else:
+        pitch = math.asin(sinp)
+
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(siny_cosp, cosy_cosp)
+    return roll, pitch, yaw
+
+
+def quaternion_from_euler(roll, pitch, yaw):
+    """Convert Euler angles (roll, pitch, yaw) into a Quaternion (x, y, z, w)."""
+    cy = math.cos(yaw * 0.5)
+    sy = math.sin(yaw * 0.5)
+    cp = math.cos(pitch * 0.5)
+    sp = math.sin(pitch * 0.5)
+    cr = math.cos(roll * 0.5)
+    sr = math.sin(roll * 0.5)
+
+    q = Quaternion()
+    q.w = cr * cp * cy + sr * sp * sy
+    q.x = sr * cp * cy - cr * sp * sy
+    q.y = cr * sp * cy + sr * cp * sy
+    q.z = cr * cp * sy - sr * sp * cy
+    return q
 
 
 class F110AutoDriveAdapter(Node):
@@ -14,6 +57,11 @@ class F110AutoDriveAdapter(Node):
 
         # Declare parameters
         self.declare_parameter('max_steer_rad', 0.4189)  # ~24 degrees
+        self.declare_parameter('wheelbase', 0.25)        # ~25 cm F1Tenth wheelbase
+        self.declare_parameter('use_kinematic_odom', True)
+        self.declare_parameter('drive_topic', '/drive')
+
+        # Controller tuning parameters
         self.declare_parameter('Kff_lin', 0.04)
         self.declare_parameter('Kff_quad', 0.000139)
         self.declare_parameter('K_steer', 0.15)
@@ -25,6 +73,10 @@ class F110AutoDriveAdapter(Node):
         self.declare_parameter('alpha', 0.25)
 
         self.max_steer_rad = self.get_parameter('max_steer_rad').value
+        self.wheelbase = self.get_parameter('wheelbase').value
+        self.use_kinematic_odom = self.get_parameter('use_kinematic_odom').value
+        self.drive_topic = self.get_parameter('drive_topic').value
+
         self.Kff_lin = self.get_parameter('Kff_lin').value
         self.Kff_quad = self.get_parameter('Kff_quad').value
         self.K_steer = self.get_parameter('K_steer').value
@@ -36,10 +88,17 @@ class F110AutoDriveAdapter(Node):
         self.alpha = self.get_parameter('alpha').value
 
         self.current_speed = 0.0
+        self.current_steering_angle = 0.0
         self.I_accum = 0.0
         self.last_callback_time = None
         self.last_error = 0.0
         self.d_error_filtered = 0.0
+
+        # Kinematic odometry state variables
+        self.odom_x = 0.0
+        self.odom_y = 0.0
+        self.odom_yaw = 0.0
+        self.last_odom_time = None
 
         # Subscriptions from AutoDRIVE
         self.lidar_sub = self.create_subscription(
@@ -64,18 +123,25 @@ class F110AutoDriveAdapter(Node):
         # Subscription from Autonomy Stack
         self.drive_sub = self.create_subscription(
             AckermannDriveStamped,
-            '/drive',
+            self.drive_topic,
             self.drive_callback,
             10
         )
 
-        # Publishers to Autonomy Stack
+        # Publishers to Autonomy Stack (Sensors & Odometry)
         self.scan_pub = self.create_publisher(LaserScan, '/scan', 10)
         self.odom_pub = self.create_publisher(Odometry, '/odom', 10)
+        self.vesc_odom_pub = self.create_publisher(Odometry, '/vesc/odom', 10)
+
+        # IMU publishers
         self.imu_pub_ekf = self.create_publisher(Imu, '/sensors/imu/raw', 10)
         self.imu_pub_ctrl = self.create_publisher(Imu, '/vesc/sensors/imu/raw', 10)
+        if HAS_VESC_MSGS:
+            self.vesc_imu_pub = self.create_publisher(VescImuStamped, '/sensors/imu', 10)
+        else:
+            self.get_logger().warn('vesc_msgs not found. /sensors/imu (VescImuStamped) will be disabled.')
 
-        # Publishers to Autonomy Stack (car state)
+        # Publishers to Autonomy Stack (Car State)
         self.car_state_odom_pub = self.create_publisher(Odometry, '/car_state/odom', 10)
         self.car_state_pose_pub = self.create_publisher(PoseStamped, '/car_state/pose', 10)
 
@@ -87,7 +153,7 @@ class F110AutoDriveAdapter(Node):
         self.in_timeout = True
         self.watchdog_timer = self.create_timer(0.1, self.watchdog_callback)
 
-        self.get_logger().info('F1Tenth AutoDRIVE Adapter Node Initialized')
+        self.get_logger().info(f'F1Tenth AutoDRIVE Adapter Node Initialized (use_kinematic_odom={self.use_kinematic_odom})')
 
     def lidar_callback(self, msg: LaserScan):
         # Forward LiDAR scan with frame_id remapped to 'laser'
@@ -95,28 +161,88 @@ class F110AutoDriveAdapter(Node):
         self.scan_pub.publish(msg)
 
     def odom_callback(self, msg: Odometry):
-        # Update current speed for the longitudinal controller
-        self.current_speed = msg.twist.twist.linear.x
+        # Read actual forward speed from simulator odometry
+        v = msg.twist.twist.linear.x
+        self.current_speed = v
 
-        # Forward Odometry with frames remapped to match EKF expectations
-        msg.header.frame_id = 'odom'
-        msg.child_frame_id = 'base_link'
-        self.odom_pub.publish(msg)
+        time_now = self.get_clock().now()
+
+        if self.use_kinematic_odom:
+            # Kinematic Wheel Odometry Integration (emulating vesc_to_odom_node)
+            if self.last_odom_time is None:
+                dt = 0.0
+            else:
+                dt = (time_now - self.last_odom_time).nanoseconds / 1e9
+                if dt < 0.0 or dt > 0.5:
+                    dt = 0.0
+            self.last_odom_time = time_now
+
+            # Angular velocity from Ackermann kinematics: omega_z = (v / L) * tan(steering_angle)
+            omega_z = (v / self.wheelbase) * math.tan(self.current_steering_angle)
+
+            # Integrate pose
+            self.odom_yaw += omega_z * dt
+            # Normalize yaw to [-pi, pi]
+            self.odom_yaw = math.atan2(math.sin(self.odom_yaw), math.cos(self.odom_yaw))
+
+            self.odom_x += v * math.cos(self.odom_yaw) * dt
+            self.odom_y += v * math.sin(self.odom_yaw) * dt
+
+            # Construct kinematic odometry message
+            odom_msg = Odometry()
+            odom_msg.header.stamp = msg.header.stamp
+            odom_msg.header.frame_id = 'odom'
+            odom_msg.child_frame_id = 'base_link'
+
+            odom_msg.pose.pose.position.x = self.odom_x
+            odom_msg.pose.pose.position.y = self.odom_y
+            odom_msg.pose.pose.position.z = 0.0
+            odom_msg.pose.pose.orientation = quaternion_from_euler(0.0, 0.0, self.odom_yaw)
+
+            odom_msg.twist.twist.linear.x = v
+            odom_msg.twist.twist.linear.y = 0.0
+            odom_msg.twist.twist.angular.z = omega_z
+        else:
+            # Pass ground-truth odometry from simulator with remapped frame_ids
+            odom_msg = msg
+            odom_msg.header.frame_id = 'odom'
+            odom_msg.child_frame_id = 'base_link'
+
+        # Publish to both /odom and /vesc/odom
+        self.odom_pub.publish(odom_msg)
+        self.vesc_odom_pub.publish(odom_msg)
 
         # Republish as /car_state/odom for controller speed tracking
-        self.car_state_odom_pub.publish(msg)
+        self.car_state_odom_pub.publish(odom_msg)
 
         # Extract pose for /car_state/pose
         pose_msg = PoseStamped()
-        pose_msg.header = msg.header
-        pose_msg.pose = msg.pose.pose
+        pose_msg.header = odom_msg.header
+        pose_msg.pose = odom_msg.pose.pose
         self.car_state_pose_pub.publish(pose_msg)
 
     def imu_callback(self, msg: Imu):
-        # Forward IMU data with frame_id remapped to 'imu'
+        # Forward standard IMU data with frame_id remapped to 'imu'
         msg.header.frame_id = 'imu'
         self.imu_pub_ekf.publish(msg)
         self.imu_pub_ctrl.publish(msg)
+
+        # Synthesize VescImuStamped for /sensors/imu if vesc_msgs is available
+        if HAS_VESC_MSGS:
+            vesc_imu_msg = VescImuStamped()
+            vesc_imu_msg.header = msg.header
+
+            # Convert orientation quaternion to Roll, Pitch, Yaw
+            roll, pitch, yaw = euler_from_quaternion(msg.orientation)
+            vesc_imu_msg.imu.ypr.x = roll
+            vesc_imu_msg.imu.ypr.y = pitch
+            vesc_imu_msg.imu.ypr.z = yaw
+
+            vesc_imu_msg.imu.linear_acceleration = msg.linear_acceleration
+            vesc_imu_msg.imu.angular_velocity = msg.angular_velocity
+            vesc_imu_msg.imu.orientation = msg.orientation
+
+            self.vesc_imu_pub.publish(vesc_imu_msg)
 
     def drive_callback(self, msg: AckermannDriveStamped):
         self.last_drive_time = self.get_clock().now()
@@ -125,6 +251,7 @@ class F110AutoDriveAdapter(Node):
             self.in_timeout = False
         target_speed = msg.drive.speed
         target_steering_angle = msg.drive.steering_angle
+        self.current_steering_angle = target_steering_angle
 
         # 1. Normalize steering command: map to [-1, 1]
         u_steer = target_steering_angle / self.max_steer_rad
