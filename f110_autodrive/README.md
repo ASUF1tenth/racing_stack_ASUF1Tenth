@@ -1,121 +1,159 @@
-# AutoDRIVE Simulator Autopilot & Control Adapter
+# AutoDRIVE Simulator Adapter for the ASUF1Tenth Race Stack
 
-This package contains the ROS 2 integration, launch configurations, and actuator control systems to run the F1TENTH modular autonomy stack inside the AutoDRIVE simulator.
-
----
-
-## Features & Work Accomplished
-
-We have implemented three major components in this package:
-
-### 1. Actuator Feedback & Steering Compensation (`autodrive_adapter`)
-To enable stable closed-loop speed tracking under different driving scenarios, the adapter node bridges simulator actuators with the following features:
-* **Steering Drag Compensation**: Combats speed drops in tight turns by scaling feedforward throttle with steering angle:
-  $$u_{\text{steer\_comp}} = u_{\text{ff}} \cdot (1.0 + K_{\text{steer}} \cdot u_{\text{steer}}^2)$$
-* **Zone-Bounded Feedback Control (PID)**: Active only when the absolute speed error is within a bounded window (`e_zone`). This eliminates steady-state errors while preventing integrator windup during large setpoint transitions or startup.
-* **Low-Pass Filtered Derivative Damping**: Passes raw speed derivative errors through a first-order Low-Pass Filter (LPF) with parameter `alpha` to filter simulator noise and prevent actuator chattering/oscillations at high speeds.
-
-### 2. Follow-the-Gap (FTG) Autopilot Launcher (`autodrive_ftg_launch.xml`)
-Consolidates the modular autonomy stack to run the Follow-the-Gap local planner reactively on the track without needing full SLAM, state estimation, or trajectory planning nodes:
-* **Global Parameters Server**: Starts `global_parameter_node` to supply workspace configs.
-* **State Machine Node**: Runs `state_machine` with local parameter overrides (`safety_radius`, `max_lidar_dist`, `max_speed`, etc.) to preserve core stack configurations.
-* **Dummy Topics Simulation (`dummy_publisher`)**: Publishes mock data to `/global_waypoints`, `/global_waypoints_scaled`, `/local_waypoints`, and car state topics to satisfy startup safety checks. Includes exactly two waypoints to satisfy Scipy's `CubicSpline` path interpolation.
-* **Node Wrapper (`autodrive_controller`)**: Monkey patches the core stack's `controller_manager` at runtime to initialize `self.l1_params` in FTG mode and delay execution until the first `/scan` message arrives, avoiding startup crashes without modifying stack files.
-* **Wall Time Compatibility**: Configures `use_sim_time` to `False` since the AutoDRIVE simulator runs on system time (no `/clock` topic).
-
-### 3. Integrated Simulator Bridge (`autodrive_roboracer`)
-We moved the `autodrive_roboracer` package from the external `autodrive_devkit` workspace directly into our main source workspace.
-* **WSL & Windows Friendly**: Running the bridge inside the same container as the ROS stack bypasses sequence size and network serialization errors across container boundaries, allowing it to communicate with the simulator running on the Windows host over TCP WebSockets.
-* **Unified Launcher**: Added a `launch_bridge` option (enabled by default) to start the WebSocket bridge automatically alongside all other stack nodes in a single command.
-
----
+`f110_autodrive` is a ROS 2 hardware abstraction layer (HAL) that bridges the
+[AutoDRIVE](https://autodrive-ecosystem.github.io/) RoboRacer simulator to the
+ASUF1Tenth F1TENTH race stack. The `autodrive_adapter` node presents the
+simulator as a virtual VESC + LiDAR F1TENTH car, translating AutoDRIVE topics
+into the exact sensor, odometry, and actuator interfaces the race stack
+expects.
 
 ## System Architecture
 
-```mermaid
-graph TD
-    subgraph "Unity Simulator (Host OS)"
-        Sim[AutoDRIVE Simulator]
-    end
-
-    subgraph ROS 2 Docker Container
-        subgraph f110_autodrive Package
-            Adapter[autodrive_adapter]
-            DummyPub[dummy_publisher]
-            Wrapper[autodrive_controller wrapper]
-        end
-
-        subgraph autodrive_roboracer Package
-            Bridge[autodrive_bridge]
-        end
-
-        subgraph Core Autonomy Stack
-            SM[state_machine node]
-            GlobalParam[global_parameters]
-        end
-    end
-
-    %% Sensor Data Flow (WebSocket to Container)
-    Sim <-->|WebSockets| Bridge
-    
-    %% Sensor remapping within container
-    Bridge -->|/scan| Wrapper
-    Bridge -->|/odom| Adapter
-    
-    %% Mock Data Flow
-    DummyPub -->|/global_waypoints| Wrapper
-    DummyPub -->|/global_waypoints_scaled| SM
-    DummyPub -->|/local_waypoints| Wrapper
-    DummyPub -->|/car_state/pose and odom| Wrapper
-    DummyPub -->|/car_state/frenet/odom| SM
-
-    %% Parameter Services
-    GlobalParam <-.->|GetParameters| Wrapper
-    SM <-.->|GetParameters| Wrapper
-
-    %% Actuation Commands
-    Wrapper -->|/vesc/high_level/ackermann_cmd_mux/input/nav_1| Adapter
-    Adapter -->|/vesc/high_level/ackermann_cmd_mux/input/nav_1| Bridge
+```
+AutoDRIVE Simulator                     f110_autodrive (this package)                ASUF1Tenth Race Stack
++----------------------------+          +----------------------------------+          +------------------------+
+| /autodrive/roboracer_1/    | -------> | autodrive_adapter                | -------> | /scan                  |
+|   lidar   (LaserScan)      |  bridge  |   - sensor/odom remapping        | remap    | /odom, /vesc/odom      |
+| /autodrive/roboracer_1/    |          |   - kinematic odometry emulation |          | /sensors/imu/raw       |
+|   odom    (Odometry)       |          |   - IMU forwarding               |          | /vesc/sensors/imu/raw  |
+| /autodrive/roboracer_1/    |          |   - actuator command mapping     |          | /car_state/odom, pose  |
+|   imu     (Imu)            |          |   - closed-loop speed control    |          | /drive                 |
++----------------------------+          +----------------------------------+          +------------------------+
+       ^                                        |
+       | steering/throttle commands (Float32, normalized)
+       +----------------------------------------+
 ```
 
----
+## Features
+
+### Sensor Bridging & Frame Remapping
+Converts the simulator's sensor streams into the race stack's hardware topics:
+
+* **LiDAR**: `/autodrive/roboracer_1/lidar` → `/scan` with `frame_id = laser`.
+* **Odometry**: `/autodrive/roboracer_1/odom` → `/odom` and `/vesc/odom` with
+  `frame_id = odom`, `child_frame_id = base_link`, plus `/car_state/odom` and
+  `/car_state/pose` for the stack's car state interface.
+* **IMU**: `/autodrive/roboracer_1/imu` → `/sensors/imu/raw` and
+  `/vesc/sensors/imu/raw` (`sensor_msgs/msg/Imu`, `frame_id = imu`), plus a
+  synthesized `vesc_msgs/msg/VescImuStamped` on `/sensors/imu` when `vesc_msgs`
+  is available.
+
+### Kinematic Odometry Emulation (`use_kinematic_odom`)
+Emulates `vesc_to_odom_node` by integrating a bicycle model using the
+simulator's forward speed and the commanded steering angle:
+
+$$\omega_z = \frac{v}{L}\tan(\delta),\quad x_{k+1} = x_k + v\cos(\theta)\,\Delta t,\quad \theta_{k+1} = \theta_k + \omega_z\,\Delta t$$
+
+With `use_kinematic_odom := false`, the simulator's ground-truth odometry is
+passed through instead.
+
+### Actuator Command Mapping & Closed-Loop Speed Control
+Subscribes to `/drive` (`ackermann_msgs/msg/AckermannDriveStamped`, topic
+configurable via `drive_topic`) and produces normalized AutoDRIVE commands:
+
+* **Steering**: $\delta$ is normalized to $u_{\text{steer}} = \delta / \delta_{\text{max}} \in [-1, 1]$.
+* **Feedforward throttle**: quadratic plus linear model
+  $u_{\text{ff}} = K_{\text{ff\_quad}}\,v^2 + K_{\text{ff\_lin}}\,v$.
+* **Steering drag compensation**: scales feedforward throttle in turns to
+  combat speed drops:
+  $$u_{\text{throttle}} = u_{\text{ff}}\cdot\bigl(1 + K_{\text{steer}}\cdot u_{\text{steer}}^2\bigr)$$
+* **Zone-bounded PID feedback**: active only when $|v_{\text{target}} - v_{\text{actual}}| < e_{\text{zone}}$; the integrator is clamped to $\pm I_{\text{max}}$ to prevent windup and reset outside the zone.
+* **Filtered derivative damping**: the derivative error is passed through a
+  first-order low-pass filter ($\alpha$) to suppress simulator noise and
+  actuator chattering.
+* **Watchdog safety**: if no `/drive` command arrives within 200 ms, zero
+  throttle and straight steering are published to halt the vehicle.
+
+Throttle is clamped to $[0, 1]$.
+
+## Topic Interface
+
+### Subscriptions
+
+| Topic | Type | Purpose |
+| :--- | :--- | :--- |
+| `/autodrive/roboracer_1/lidar` | `sensor_msgs/msg/LaserScan` | Simulator LiDAR |
+| `/autodrive/roboracer_1/odom` | `nav_msgs/msg/Odometry` | Simulator speed/pose |
+| `/autodrive/roboracer_1/imu` | `sensor_msgs/msg/Imu` | Simulator IMU |
+| `/drive` (default) | `ackermann_msgs/msg/AckermannDriveStamped` | Stack actuation command |
+
+### Publishers
+
+| Topic | Type | Description |
+| :--- | :--- | :--- |
+| `/scan` | `sensor_msgs/msg/LaserScan` | LiDAR forwarded to the stack |
+| `/odom` | `nav_msgs/msg/Odometry` | Odometry (kinematic or ground truth) |
+| `/vesc/odom` | `nav_msgs/msg/Odometry` | Same data as `/odom` |
+| `/car_state/odom` | `nav_msgs/msg/Odometry` | Car state interface odometry |
+| `/car_state/pose` | `geometry_msgs/msg/PoseStamped` | Car state interface pose |
+| `/sensors/imu/raw` | `sensor_msgs/msg/Imu` | IMU for EKF (`robot_localization`) |
+| `/vesc/sensors/imu/raw` | `sensor_msgs/msg/Imu` | IMU mirror for the controller |
+| `/sensors/imu` | `vesc_msgs/msg/VescImuStamped` | VESC IMU (only if `vesc_msgs` is installed) |
+| `/autodrive/roboracer_1/steering_command` | `std_msgs/msg/Float32` | Normalized steering to simulator |
+| `/autodrive/roboracer_1/throttle_command` | `std_msgs/msg/Float32` | Normalized throttle to simulator |
 
 ## Launch Parameters
 
-The launch file arguments allow configuring parameters for both Follow-the-Gap and the control adapter:
+Run the adapter node with `autodrive_launch.xml`:
 
-### Follow-the-Gap Parameters
-Passed to the state machine node block:
-* `safety_radius` (default `15`): Laser index sweep margin to inflate obstacles.
-* `max_lidar_dist` (default `10.0`): Lidar scan distance clipping range.
-* `max_speed` (default `3.0`): Max target speed in m/s.
-* `range_offset` (default `180`): Angle cutoff index (yielding 180° field of view).
-* `track_width` (default `3.0`): Approximate racetrack track width.
+```bash
+ros2 launch f110_autodrive autodrive_launch.xml
+```
 
-### Control Adapter Parameters
-Passed to the adapter node block (can be set to non-zero values to tune closed-loop feedback):
-* `K_steer` (default `0.15`): Cornering drag compensation gain.
-* `K_p` (default `0.0`): Proportional speed error gain.
-* `K_i` (default `0.0`): Integral speed error gain.
-* `K_d` (default `0.0`): Derivative speed error gain.
-* `e_zone` (default `0.5`): Error band for feedback control activation.
-* `I_max` (default `0.2`): Integral windup boundary limit.
-* `alpha` (default `0.25`): First-order low-pass filter coefficient for derivative damping.
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `max_steer_rad` | `0.4189` | Steering limit used to normalize commands (≈24°) |
+| `wheelbase` | `0.25` | Vehicle wheelbase (m) for kinematic odometry |
+| `use_kinematic_odom` | `True` | Emulate `vesc_to_odom_node` instead of using ground truth |
+| `drive_topic` | `/drive` | Stack actuation command topic to subscribe to |
+| `Kff_lin` | `0.04` | Linear feedforward throttle gain |
+| `Kff_quad` | `0.000139` | Quadratic feedforward throttle gain |
+| `K_steer` | `0.15` | Steering drag compensation gain |
+| `K_p` | `0.0` | Proportional speed error gain |
+| `K_i` | `0.0` | Integral speed error gain |
+| `K_d` | `0.0` | Derivative speed error gain |
+| `e_zone` | `0.5` | Error band for feedback activation (m/s) |
+| `I_max` | `0.2` | Integral clamp |
+| `alpha` | `0.25` | First-order LPF coefficient for derivative damping |
 
-### Bridge Options
-* `launch_bridge` (default `True`): Launches the simulator WebSocket bridge. Set to `False` if you prefer to run it manually or externally.
+Typical tuning ranges for the feedback controller:
 
----
+| Parameter | Typical range |
+| :--- | :--- |
+| `K_steer` | 0.0 — 0.3 |
+| `K_p` | 0.0 — 1.0 |
+| `K_i` | 0.0 — 0.5 |
+| `K_d` | 0.0 — 0.2 |
+| `e_zone` | 0.1 — 1.0 m/s |
+| `I_max` | 0.05 — 0.5 |
+| `alpha` | 0.05 — 0.5 |
 
 ## How to Run
 
-1. Start the AutoDRIVE Unity simulator on your host OS.
-2. Build and source your workspace (inside the container):
+1. Start the AutoDRIVE simulator and run the AutoDRIVE bridge (`autodrive_roboracer`)
+   so the `/autodrive/roboracer_1/*` topics are published.
+2. Build and source the workspace:
    ```bash
-   colcon build --symlink-install --packages-select f110_autodrive autodrive_roboracer
+   colcon build --symlink-install --packages-select f110_autodrive
    source install/setup.bash
    ```
-3. Run the unified autopilot launcher:
+3. Launch the adapter:
    ```bash
-   ros2 launch f110_autodrive autodrive_ftg_launch.xml
+   ros2 launch f110_autodrive autodrive_launch.xml
    ```
+4. Publish a drive command to test the actuator mapping:
+   ```bash
+   ros2 topic pub --once /drive ackermann_msgs/msg/AckermannDriveStamped \
+     '{drive: {speed: 1.5, steering_angle: 0.2}}'
+   ```
+
+The full race stack can then be launched in AutoDRIVE mode via the workspace's
+wrapper launch files (e.g. `sim_mode:=autodrive`), which start the adapter
+alongside the stack.
+
+## Documentation
+
+* [Hardware Topics & Interface Reference](docs/hardware_topics_reference.md) —
+  full inventory of the F1TENTH hardware topics this adapter emulates.
+* [Testing Guide](docs/testing_guide.md) — step-by-step verification of sensor
+  forwarding, actuator math, and the watchdog timeout.
