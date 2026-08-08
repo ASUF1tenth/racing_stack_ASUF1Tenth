@@ -53,6 +53,17 @@ In `stack_master/config/<NUCx>/slam/f110_2d.lua`:
 - Lower `TRAJECTORY_BUILDER_2D.max_range = 8.0` or `10.0` (down from `25.0`).
 - This stops LiDAR rays from mapping room space far outside your track barriers.
 
+#### Scan Matcher Weight Tuning
+While mapping, you can weaken the Ceres scan matcher's reliance on rotation/translation alignment (useful when the LiDAR/odom setup is noisy) by scaling down its weights in the same `f110_2d.lua`:
+
+```lua
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight = 0.4 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.rotation_weight
+
+TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight = 0.4 * TRAJECTORY_BUILDER_2D.ceres_scan_matcher.translation_weight
+```
+
+Lower factors (e.g. `0.2` instead of `0.4`) reduce the scan matcher's confidence in the current scan alignment, making the map more robust to drift but also more sensitive to scan noise. Note: the localization config (`f110_2d_loc.lua`) already uses `0.2` for both weights.
+
 ### Solution 2: Manual Image Cleaning via `map_editor` (Image Fix)
 If LiDAR rays already leaked into the PNG map:
 
