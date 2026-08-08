@@ -1,6 +1,6 @@
 # Testing Guide: F1Tenth AutoDRIVE Adapter
 
-This guide outlines the systematic procedure for verifying the functionality, accuracy, and performance of the `f110_autodrive` adapter node. The adapter serves as the Hardware Abstraction Layer (HAL) translating between the AutoDRIVE simulator and the ForzaETH ROS 2 Jazzy stack.
+This guide outlines the systematic procedure for verifying the functionality, accuracy, and performance of the `f110_autodrive` adapter node. The adapter serves as the Hardware Abstraction Layer (HAL) translating between the AutoDRIVE simulator and the ASUF1Tenth ROS 2 Jazzy stack.
 
 ---
 
@@ -19,15 +19,15 @@ docker ps
 To ensure cross-boundary communication between the host system and the Docker container, both must run on the same ROS domain:
 * **Host System**:
   ```bash
-  export ROS_DOMAIN_ID=6
+  export ROS_DOMAIN_ID=48
   ```
-* **Container**: Automatically configured to `ROS_DOMAIN_ID=6` in the devcontainer settings.
+* **Container**: Automatically configured to `ROS_DOMAIN_ID=48` in the devcontainer settings.
 
 ### 1c. Simulator & Host Bridge Launch
 1. Launch the **AutoDRIVE Simulator** (Unity executable) on the host machine.
-2. In a host terminal (sourced with the `autodrive_devkit` workspace and `ROS_DOMAIN_ID=6`), start the bridge node:
+2. In a host terminal (sourced with the `autodrive_devkit` workspace and `ROS_DOMAIN_ID=48`), start the bridge node:
    ```bash
-   source ~/Projects/f1tenth/highlevel/sim/autodrive_devkit/install/setup.bash
+   source <autodrive_devkit folder>/install/setup.bash
    ros2 launch autodrive_roboracer bringup_headless.launch.py
    ```
 
@@ -40,7 +40,7 @@ This test case verifies that raw simulator sensor outputs are correctly captured
 ### 2a. Run the Adapter Node
 Inside a terminal inside the container, run the launch file:
 ```bash
-source ~/ws/install/setup.bash
+source install/setup.bash
 ros2 launch f110_autodrive autodrive_launch.xml
 ```
 
@@ -58,6 +58,8 @@ ros2 topic list
 * `/sensors/imu/raw`
 * `/vesc/sensors/imu/raw`
 * `/sensors/imu` (when `vesc_msgs` is installed)
+* `/car_state/odom`
+* `/car_state/pose`
 
 ### 2c. Verify LiDAR Forwarding
 Echo a single scan message:
@@ -90,11 +92,21 @@ ros2 topic echo /sensors/imu --once
 * `/sensors/imu/raw` and `/vesc/sensors/imu/raw` publish `sensor_msgs/msg/Imu` with `header.frame_id = "imu"`.
 * `/sensors/imu` publishes `vesc_msgs/msg/VescImuStamped` with populated Roll/Pitch/Yaw (`ypr.x`, `ypr.y`, `ypr.z`) angles in radians.
 
+### 2f. Verify Car State Publishing (`/car_state/odom` & `/car_state/pose`)
+Echo single messages from the car state topics:
+```bash
+ros2 topic echo /car_state/odom --once
+ros2 topic echo /car_state/pose --once
+```
+**Expected Validation**:
+* `/car_state/odom` publishes `nav_msgs/msg/Odometry` matching `/odom` (same pose and twist).
+* `/car_state/pose` publishes `geometry_msgs/msg/PoseStamped` with the same pose as `/car_state/odom`.
+
 ---
 
 ## 3. Test Case 2: Actuator Command Mapping & Mathematical Conversion
 
-This test case verifies that the steering and throttle command conversions map correctly from physical values (rad, m/s) to normalized simulator command signals ([-1, 1]).
+This test case verifies that the steering and throttle command conversions map correctly from physical values (rad, m/s) to normalized simulator command signals (steering in $[-1, 1]$, throttle in $[0, 1]$).
 
 ### 3a. Prepare Echo Receivers
 Open two background terminals in the container to capture the outgoing simulator commands:
@@ -122,13 +134,16 @@ Analyze the captured commands in the echo terminals:
 * **Verification**: With $\delta_{target} = 0.2$ rad and $\delta_{max\_limit} = 0.4189$ rad (default):
   * The `/autodrive/roboracer_1/steering_command` echo output must be exactly: **`0.477440...`**
 
-#### 2. Throttle Conversion Validation (Quadratic Feedforward)
-* **Equation**: 
-  $$u_{throttle} = K_{ff\_quad} v_{target}^2 + K_{ff\_lin} v_{target}$$
-  *Clamped strictly to $[0.0, 1.0]$.*
-* **Verification**: With $v_{target} = 1.5$ m/s, $K_{ff\_lin} = 0.04$, and $K_{ff\_quad} = 0.000139$ (default):
-  * $u_{throttle} = 0.000139 \times 1.5^2 + 0.04 \times 1.5 = 0.00031275 + 0.06 = 0.06031275$
-  * The `/autodrive/roboracer_1/throttle_command` echo output must be exactly: **`0.06`**
+#### 2. Throttle Conversion Validation (Feedforward + Steering Drag Compensation)
+* **Equations**:
+  $$u_{ff} = K_{ff\_quad} v_{target}^2 + K_{ff\_lin} v_{target}$$
+  $$u_{throttle} = u_{ff} \cdot \bigl(1 + K_{steer} \cdot u_{steer}^2\bigr)$$
+  *Clamped strictly to $[0.0, 1.0]$.* With a stationary car ($e_v = 1.5 \not< e_{zone}$), feedback stays off, so this is the exact expected value.
+* **Verification**: With $v_{target} = 1.5$ m/s, $\delta_{target} = 0.2$ rad, $K_{ff\_lin} = 0.04$, $K_{ff\_quad} = 0.000139$, and $K_{steer} = 0.15$ (defaults):
+  * $u_{ff} = 0.000139 \times 1.5^2 + 0.04 \times 1.5 = 0.00031275 + 0.06 = 0.06031275$
+  * $u_{steer} = 0.2 / 0.4189 = 0.4774...$
+  * $u_{throttle} = 0.06031275 \times (1 + 0.15 \times 0.4774^2) = 0.06031275 \times 1.03419 = 0.062375...$
+  * The `/autodrive/roboracer_1/throttle_command` echo output must be exactly: **`0.062375...`**
 
 ---
 
@@ -143,7 +158,7 @@ ros2 launch f110_autodrive autodrive_launch.xml
 ```
 
 ### 4b. Publish High-Frequency Mock Drive Commands
-Publish a `/drive` topic at a high rate (e.g. 20 Hz, which is > 10 Hz) with non-zero values:
+Publish a `/drive` topic at a continuous high rate (e.g. 20 Hz) with non-zero values:
 ```bash
 ros2 topic pub -r 20 /drive ackermann_msgs/msg/AckermannDriveStamped '{drive: {speed: 1.5, steering_angle: 0.15}}'
 ```
@@ -152,7 +167,7 @@ ros2 topic pub -r 20 /drive ackermann_msgs/msg/AckermannDriveStamped '{drive: {s
 In a separate terminal inside the container, monitor the output command values:
 ```bash
 ros2 topic echo /autodrive/roboracer_1/throttle_command
-# Expected: output is non-zero (around 0.06)
+# Expected: output is non-zero (around 0.0615 with defaults, speed 1.5 / angle 0.15)
 ```
 
 ### 4d. Trigger Watchdog Halt
@@ -171,6 +186,6 @@ If topics are active but data is not flowing, use this diagnostic list:
 | Symptom | Root Cause | Resolution |
 |---|---|---|
 | **No topics appear in `ros2 topic list`** | The adapter node is not running. | Verify the launch file started without errors. Check the logs at `/home/mohany/.ros/log/` |
-| **Topics exist, but `echo` blocks forever** | ROS Domain ID mismatch between host and container. | Run `export ROS_DOMAIN_ID=6` in the host terminal before starting the bridge. |
-| **LiDAR or Odometry frames mismatched** | Incorrect remapping parameters inside the python node. | Verify that [autodrive_adapter.py](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/f110_autodrive/f110_autodrive/autodrive_adapter.py) sets `frame_id` correctly. |
-| **Throttle controller does not reverse** | Negative target speeds are not handled. | Verify that speed clamping permits negative bounds ($[-1.0, 1.0]$) and that $K_{ff}$ operates correctly on negative $v_{target}$. |
+| **Topics exist, but `echo` blocks forever** | ROS Domain ID mismatch between host and container. | Run `export ROS_DOMAIN_ID=48` in the host terminal before starting the bridge. |
+| **LiDAR or Odometry frames mismatched** | Incorrect remapping parameters inside the python node. | Verify that [f110_autodrive/autodrive_adapter.py](f110_autodrive/f110_autodrive/autodrive_adapter.py#L1) sets `frame_id` correctly. |
+| **Car does not reverse** | The adapter does not support negative speeds. | Expected behavior: `u_throttle` is clamped to $[0, 1]$ and forced to `0.0` for `target_speed <= 0.01`. Reversing is not supported by this adapter. |
