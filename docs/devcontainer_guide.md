@@ -19,8 +19,8 @@ A Devcontainer allows you to use a Docker container as a full-featured developme
 
 To use Devcontainers, install the following on your host workstation:
 
-1. **Docker**: Ensure Docker is installed and configured to run without `sudo` (see [Docker Post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/)).
-2. **VS Code**: Download and install Visual Studio Code.
+1. **Docker**: Ensure Docker is installed [from here](https://docs.docker.com/engine/install/) and configured to run without `sudo` (see [Docker Post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/)).
+2. **VS Code**: Download and install Visual Studio Code from the [official website](https://code.visualstudio.com/).
 3. **Dev Containers Extension**: 
    * Open VS Code.
    * Press `Ctrl + Shift + X` to open the Extensions marketplace.
@@ -43,7 +43,7 @@ To use Devcontainers, install the following on your host workstation:
    *(Note: Prepending `env UID=... GID=...` maps your host user ID and group ID inside the container, preventing file permission conflicts and compile-time user creation crashes).*
 
 3. **Open the project folder**:
-   In VS Code, open the folder `/home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src`.
+   In VS Code, open the folder (example: `/home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src`).
    > [!WARNING]
    > You **must** open the `src` folder directly in VS Code, **not** the parent directory `asuf1tenth`. The Dev Container configuration is designed to mount the opened directory exactly as the workspace source folder. Opening the parent directory will break file mounts, path resolution, and compilation.
 4. **Reopen in Container**:
@@ -64,8 +64,8 @@ To use Devcontainers, install the following on your host workstation:
 > 
 > **Automated Reinstallation Scripts**:
 > We have provided utility scripts in your workspace to automate the reinstallation of VS Code and Docker to bypass snap conflicts:
-> * **VS Code Reinstaller**: Run [.install_utils/reinstall_vscode_deb.sh](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.install_utils/reinstall_vscode_deb.sh) on the host to swap Snap VS Code for the native `.deb` package.
-> * **Docker Engine Reinstaller**: Run [.install_utils/reinstall_docker_apt.sh](file:///home/mohany/Projects/f1tenth/highlevel/asuf1tenth/src/.install_utils/reinstall_docker_apt.sh) on the host to swap Snap Docker for the official APT engine and disable Wayland socket mounts.
+> * **VS Code Reinstaller**: Run [.install_utils/reinstall_vscode_deb.sh](../.install_utils/reinstall_vscode_deb.sh) on the host to swap Snap VS Code for the native `.deb` package.
+> * **Docker Engine Reinstaller**: Run [.install_utils/reinstall_docker_apt.sh](../.install_utils/reinstall_docker_apt.sh) on the host to swap Snap Docker for the official APT engine and disable Wayland socket mounts.
 
 ---
 
