@@ -4,7 +4,7 @@
 ## Clone Repo
 Be aware to clone the ROS 2 branch!
 ```bash
-git clone -b ros2-jazzy --recurse-submodules git@github.com:ForzaETH/race_stack.git 
+git clone -b ros2-jazzy --recurse-submodules https://github.com/ASUF1tenth/race_stack_asuf1tenth.git 
 cd race_stack
 ```
 
@@ -12,8 +12,7 @@ cd race_stack
 The docker image is defined with the [Dockerfile](../.devcontainer/Dockerfile). A single unified image is built to support both simulation and physical hardware deployment.
 
 
-**NOTE**: it is suggested to set a static IP for the robot with the ROS_HOSTNAME environment variable, so that the IP of the robot is always the same, as from [networking structure](../stack_master/checklists/networking.md).
-Setting up a static ip at this moment will allow you to set extra computers (that can ping such IP) to listen to the ROS messags on the robot, enabling fast and quick development. 
+**NOTE**: it is suggested to set a static IP for the robot with the ROS_HOSTNAME environment variable, so that the IP of the robot is always the same. Setting up a static ip at this moment will allow you to set extra computers (that can ping such IP) to listen to the ROS messags on the robot, enabling fast and quick development. 
 
 
 ## How to use (docker container)
