@@ -12,7 +12,7 @@ In these cases, the Map Editor package is a convenience to allow the 2D map gene
 If you already have a saved map folder in `stack_master/maps/<map_name>` (containing `<map_name>.png` and `<map_name>.yaml`), you can run the global trajectory optimization pipeline offline directly without re-mapping:
 
 ```bash
-ros2 launch map_editor map_editor_launch.xml map_name:=workspace_loop map_editor_mapping:=False
+ros2 launch map_editor map_editor_launch.xml map_name:=<map_name> map_editor_mapping:=False
 ```
 
 This will load the existing map via `nav2_map_server`, run centerline extraction and trajectory optimization (`global_planner`), and generate `global_waypoints.json` without requiring live driving or SLAM.
@@ -21,7 +21,7 @@ This will load the existing map via `nav2_map_server`, run centerline extraction
 ### 1. Mapping
 1. First, a (baseline) map stil needs to be created. Launch it with:
     ```bash
-    ros2 launch map_editor map_editor.launch map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=True racecar_version:=NUCX
+    ros2 launch map_editor map_editor_launch.xml map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=True racecar_version:=NUCX
     ```
     Replace PLACE with the place where the track is, e.g. icra or hangar.
 
@@ -48,7 +48,7 @@ This option is useful if the network connection between the car and your compute
 
 3. Call the map_editor program **locally**:
     ```bash
-    ros2 launch map_editor map_editor.launch map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False
+    ros2 launch map_editor map_editor_launch.xml map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False
     ```
 
     Now a window with the map should be prompted. Inspect that it makes sense. To proceed that window needs to be closed.
@@ -58,7 +58,7 @@ This option is useful if the network connection between the car and your compute
     Note: In the global trajectory window an arrow is appearing that sets the driving direction. If it is not in the intended direction, add the flag `reverse:=True` to the previous used command.
 
     ```bash
-    ros2 launch map_editor map_editor.launch map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False reverse:=True
+    ros2 launch map_editor map_editor_launch.xml map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False reverse:=True
     ```
 
     This command will create the `speed_scaler.yaml`, `ot_sectors.yaml`, and `global_waypoints.json` files.
@@ -81,7 +81,7 @@ This option does not require copying, and may be more convenient if there is a s
 
 2. Call the map_editor program **on the car**:
     ```bash
-    ros2 launch map_editor map_editor.launch map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False
+    ros2 launch map_editor map_editor_launch.xml map_name:=PLACE_DAYMONTH_VN map_editor_mapping:=False
     ```
 
     Follow the same steps as 2a, step 3. The only difference is that map_editor runs on the car.
